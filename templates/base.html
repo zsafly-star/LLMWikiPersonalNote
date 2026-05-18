@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSEditor - 个人知识管理</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+    <style>
+    .emoji-icon{display:inline-block;width:1em;height:1em;vertical-align:-0.125em;object-fit:contain}
+    .emoji-icon-sm{width:14px;height:14px}
+    .emoji-icon-md{width:18px;height:18px}
+    .emoji-icon-lg{width:22px;height:22px}
+    .emoji-icon-xl{width:28px;height:28px}
+    .emoji-spin{animation:emoji-spin 1s linear infinite}
+    @keyframes emoji-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+    </style>
+    <script src="{{ url_for('static', filename='lib/chart.js') }}"></script>
+</head>
+<body>
+    <div class="index-root">
+        <div class="index-aside">
+            <div class="index-aside-root">
+                <div class="aside-item-container">
+                    <div class="item-menu-container">
+                        <div class="aside-item item-user top-user">
+                            <div class="user-avatar">
+                                <img id="sidebar-avatar" src="/static/emoji/smiling_face_3d.png" alt="用户头像" />
+                            </div>
+                        </div>
+                        <a href="/" data-nav class="item-menu {% if active_view == 'home' %}is-active{% endif %}">
+                            <img src="/static/emoji/home_3d.png" alt="首页" class="menu-icon" />
+                            <span>首页</span>
+                        </a>
+                        <a href="/article" data-nav class="item-menu {% if active_view == 'article' %}is-active{% endif %}">
+                            <img src="/static/emoji/bookmark_3d.png" alt="文章" class="menu-icon" />
+                            <span>文章</span>
+                        </a>
+                        <a href="/wiki" data-nav class="item-menu {% if active_view == 'wiki' %}is-active{% endif %}">
+                            <img src="/static/emoji/Brain_3d.png" alt="Wiki" class="menu-icon" />
+                            <span>Wiki</span>
+                        </a>
+                        <a href="/chat" data-nav class="item-menu {% if active_view == 'chat' %}is-active{% endif %}">
+                            <img src="/static/emoji/laptop_3d.png" alt="对话" class="menu-icon" />
+                            <span>对话</span>
+                        </a>
+                        <a href="/graph" data-nav class="item-menu {% if active_view == 'graph' %}is-active{% endif %}">
+                            <img src="/static/emoji/Sparkles_3d.png" alt="星链" class="menu-icon" />
+                            <span>星链</span>
+                        </a>
+                        <a href="/picture" data-nav class="item-menu {% if active_view == 'picture' %}is-active{% endif %}">
+                            <img src="/static/emoji/picture_3d.png" alt="图片" class="menu-icon" />
+                            <span>图片</span>
+                        </a>
+                    </div>
+                    <a href="/settings" data-nav class="aside-item item-setting {% if active_view == 'settings' %}is-active{% endif %}">
+                        <img src="/static/emoji/settings_3d.png" alt="设置" class="menu-icon" />
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="index-main-container">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+    
+    <script>
+    window.onPageReady = function(fn) {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', fn);
+        } else {
+            fn();
+        }
+    };
+    </script>
+
+    <script src="{{ url_for('static', filename='js/index.js') }}"></script>
+
+    {% block scripts %}{% endblock %}
+
+    <script data-spa-router>
+    (function() {
+        var currentPage = location.pathname;
+        var mainContainer = document.querySelector('.index-main-container');
+
+        function updateActiveNav(path) {
+            document.querySelectorAll('[data-nav]').forEach(function(a) {
+                a.classList.remove('is-active');
+                var href = a.getAttribute('href');
+                if (href === path || (path !== '/' && href !== '/' && path.startsWith(href))) {
+                    a.classList.add('is-active');
+                }
+            });
+        }
+
+        function navigateTo(url, push) {
+            if (url === currentPage) return;
+
+            document.dispatchEvent(new CustomEvent('spa:navigate'));
+
+            mainContainer.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--color-muted)"><span>加载中...</span></div>';
+            fetch(url, {headers: {'X-Requested-With': 'SPA'}})
+                .then(function(r) { return r.text(); })
+                .then(function(html) {
+                    var parser = new DOMParser();
+                    var doc = parser.parseFromString(html, 'text/html');
+                    var newMain = doc.querySelector('.index-main-container');
+                    if (newMain) {
+                        mainContainer.innerHTML = newMain.innerHTML;
+                    }
+                    var newScripts = doc.querySelectorAll('body > script:not([src]):not([data-spa-router])');
+                    newScripts.forEach(function(s) {
+                        try {
+                            var ns = document.createElement('script');
+                            ns.textContent = s.textContent;
+                            document.body.appendChild(ns);
+                            ns.remove();
+                        } catch(e) {}
+                    });
+                    var newSrcScripts = doc.querySelectorAll('script[src]');
+                    newSrcScripts.forEach(function(s) {
+                        var src = s.getAttribute('src');
+                        var fullSrc = s.src;
+                        var exists = document.querySelector('script[src="' + src + '"]') ||
+                                     document.querySelector('script[src="' + fullSrc + '"]');
+                        if (!exists) {
+                            var ns = document.createElement('script');
+                            ns.src = src;
+                            document.body.appendChild(ns);
+                        }
+                    });
+                })
+                .catch(function() {
+                    mainContainer.innerHTML = '<div style="padding:40px;color:var(--color-muted)">加载失败</div>';
+                });
+
+            currentPage = url;
+            updateActiveNav(url);
+            if (push !== false) history.pushState(null, '', url);
+        }
+
+        document.addEventListener('click', function(e) {
+            // 如果点击的是按钮或按钮内的元素，不触发导航
+            if (e.target.closest('button')) return;
+            
+            var link = e.target.closest('[data-nav]');
+            if (!link) return;
+            e.preventDefault();
+            navigateTo(link.getAttribute('href'));
+        });
+
+        window.addEventListener('popstate', function() {
+            var url = location.pathname;
+            if (url !== currentPage) {
+                navigateTo(url, false);
+            }
+        });
+    })();
+    </script>
+</body>
+</html>

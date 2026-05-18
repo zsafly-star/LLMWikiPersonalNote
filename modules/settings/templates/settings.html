@@ -1,0 +1,695 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="settings-view">
+        <div class="settings-container">
+            <div class="settings-sidebar">
+                <div class="settings-menu-header">
+                    <img src="/static/emoji/Gear_3d.png" class="emoji-icon" />
+                    <span>设置</span>
+                </div>
+                <div class="settings-menu-list">
+                    <div class="settings-menu-item active" data-setting="profile">
+                        <img src="/static/emoji/smiling_face_3d.png" class="emoji-icon emoji-icon-sm" />
+                        <span>基本信息</span>
+                    </div>
+                    <div class="settings-menu-item" data-setting="theme">
+                        <img src="/static/emoji/Artist palette_3d.png" class="emoji-icon emoji-icon-sm" />
+                        <span>主题设置</span>
+                    </div>
+                    <div class="settings-menu-item" data-setting="llm">
+                        <img src="/static/emoji/Robot_3d.png" class="emoji-icon emoji-icon-sm" />
+                        <span>模型接入</span>
+                    </div>
+                    <div class="settings-menu-item" data-setting="paths">
+                        <img src="/static/emoji/Open file folder_3d.png" class="emoji-icon emoji-icon-sm" />
+                        <span>路径设置</span>
+                    </div>
+                    <div class="settings-menu-item" data-setting="weather">
+                        <img src="/static/emoji/Sun_3d.png" class="emoji-icon emoji-icon-sm" />
+                        <span>天气设置</span>
+                    </div>
+                </div>
+            </div>
+            <div class="settings-content-wrapper">
+                <div class="settings-content">
+                    <div id="setting-profile" class="setting-content-section">
+                        <div class="section-header">
+                            <h3>基本信息</h3>
+                            <p class="section-desc">设置您的个人信息</p>
+                        </div>
+                        <div class="profile-settings">
+                            <div class="form-group">
+                                <label>用户名</label>
+                                <input type="text" id="profile-username" placeholder="输入用户名">
+                            </div>
+                            <div class="form-group">
+                                <label>头像</label>
+                                <div class="avatar-preview" id="avatar-preview" onclick="openAvatarModal()">
+                                    <img id="avatar-img" src="/static/emoji/smiling_face_3d.png" alt="头像" />
+                                </div>
+                                <p style="color:var(--color-muted);font-size:13px;margin-top:8px;">点击头像选择图标</p>
+                            </div>
+                        </div>
+                        <div class="path-actions" style="margin-top:16px;">
+                            <button class="btn btn-primary" onclick="saveProfileSettings()">
+                                <img src="/static/emoji/Check mark_3d.png" class="emoji-icon emoji-icon-sm" />
+                                <span>保存设置</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="setting-theme" class="setting-content-section" style="display: none;">
+                        <div class="section-header">
+                            <h3>主题设置</h3>
+                            <p class="section-desc">选择您喜欢的界面主题</p>
+                        </div>
+                        <div class="theme-options">
+                            <div class="theme-card active" data-theme="green">
+                                <div class="theme-preview">
+                                    <div class="theme-color" style="background: linear-gradient(135deg, #0D9488, #14B8A6)"></div>
+                                </div>
+                                <div class="theme-info">
+                                    <div class="theme-name">清新青绿</div>
+                                    <div class="theme-desc">现代简约的青绿色主题</div>
+                                </div>
+                                <div class="theme-check">
+                                    <img src="/static/emoji/Check mark_3d.png" class="emoji-icon emoji-icon-sm" />
+                                </div>
+                            </div>
+                            <div class="theme-card" data-theme="pink">
+                                <div class="theme-preview">
+                                    <div class="theme-color" style="background: linear-gradient(135deg, #f687b3, #ed64a6)"></div>
+                                </div>
+                                <div class="theme-info">
+                                    <div class="theme-name">甜美粉色</div>
+                                    <div class="theme-desc">温馨甜美的粉色主题</div>
+                                </div>
+                                <div class="theme-check">
+                                    <img src="/static/emoji/Check mark_3d.png" class="emoji-icon emoji-icon-sm" />
+                                </div>
+                            </div>
+                            <div class="theme-card" data-theme="dark-teal">
+                                <div class="theme-preview">
+                                    <div class="theme-color" style="background: linear-gradient(135deg, #1E293B, #2DD4BF)"></div>
+                                </div>
+                                <div class="theme-info">
+                                    <div class="theme-name">暗夜青绿</div>
+                                    <div class="theme-desc">深邃沉稳的暗色青绿主题</div>
+                                </div>
+                                <div class="theme-check">
+                                    <img src="/static/emoji/Check mark_3d.png" class="emoji-icon emoji-icon-sm" />
+                                </div>
+                            </div>
+                            <div class="theme-card" data-theme="dark-pink">
+                                <div class="theme-preview">
+                                    <div class="theme-color" style="background: linear-gradient(135deg, #2D1225, #F472B6)"></div>
+                                </div>
+                                <div class="theme-info">
+                                    <div class="theme-name">暗夜玫瑰</div>
+                                    <div class="theme-desc">神秘优雅的暗色粉红主题</div>
+                                </div>
+                                <div class="theme-check">
+                                    <img src="/static/emoji/Check mark_3d.png" class="emoji-icon emoji-icon-sm" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="setting-llm" class="setting-content-section" style="display: none;">
+                        <div class="section-header">
+                            <h3>模型接入</h3>
+                            <p class="section-desc">配置 AI 模型，为 Wiki 编译和智能问答提供能力</p>
+                        </div>
+                        <div class="llm-config-list" id="llm-config-list"></div>
+                        <div class="llm-add-btn-bar">
+                            <button class="btn btn-primary" onclick="showAddLLMConfig()">
+                                <img src="/static/emoji/Plus_3d.png" class="emoji-icon emoji-icon-sm" />
+                                <span>添加模型配置</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="setting-paths" class="setting-content-section" style="display: none;">
+                        <div class="section-header">
+                            <h3>路径设置</h3>
+                            <p class="section-desc">资源文件存储路径（由系统自动管理）</p>
+                        </div>
+                        <div class="path-hint">
+                            <img src="/static/emoji/Information_3d.png" class="emoji-icon emoji-icon-sm" />
+                            <span>路径通过环境变量 <code>RESOURCE_BASE_PATH</code> 配置，默认为项目根目录下的 <code>resource/</code> 文件夹</span>
+                        </div>
+                        <div class="path-hint">
+                            <img src="/static/emoji/Information_3d.png" class="emoji-icon emoji-icon-sm" />
+                            <span>系统会自动在该路径下创建 <code>article</code>（文章）、<code>img</code>（图片）和 <code>attachments</code>（附件）文件夹</span>
+                        </div>
+                        <div class="path-setting">
+                            <label>当前资源路径</label>
+                            <input type="text" id="resource-path" readonly placeholder="加载中...">
+                        </div>
+                        <div class="path-actions">
+                            <button class="btn btn-primary" onclick="savePaths()">
+                                <img src="/static/emoji/File folder_3d.png" class="emoji-icon emoji-icon-sm" />
+                                <span>初始化资源文件夹</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="setting-weather" class="setting-content-section" style="display: none;">
+                        <div class="section-header">
+                            <h3>天气设置</h3>
+                            <p class="section-desc">配置和风天气 API，在首页显示 3 天天气预报</p>
+                        </div>
+                        <div class="path-hint">
+                            <img src="/static/emoji/Information_3d.png" class="emoji-icon emoji-icon-sm" />
+                            <span>请前往 <a href="https://dev.qweather.com/" target="_blank" style="color:var(--color-primary)">和风天气开发平台</a> 注册账号并创建项目获取 API Key</span>
+                        </div>
+                        <div class="form-group">
+                            <label>API Host</label>
+                            <input type="text" id="weather-api-host" placeholder="https://devapi.qweather.com">
+                        </div>
+                        <div class="form-group">
+                            <label>API Key (Token)</label>
+                            <input type="password" id="weather-api-key" placeholder="输入和风天气 API Key" onfocus="onWeatherKeyFocus(this)">
+                        </div>
+                        <div class="form-group">
+                            <label>选择城市</label>
+                            <div style="display:flex;gap:8px;align-items:center;">
+                                <input type="text" id="weather-city-search" placeholder="输入城市名称搜索..." style="flex:1">
+                                <button class="btn btn-secondary" onclick="searchWeatherCity()" style="white-space:nowrap">搜索</button>
+                            </div>
+                            <div id="weather-city-results" style="margin-top:8px;display:none;"></div>
+                            <div id="weather-selected-city" style="margin-top:8px;display:none;">
+                                <span style="color:var(--color-primary);font-weight:500;"></span>
+                            </div>
+                        </div>
+                        <div class="path-actions" style="margin-top:16px;">
+                            <button class="btn btn-primary" onclick="saveWeatherConfig()">
+                                <img src="/static/emoji/Sun_3d.png" class="emoji-icon emoji-icon-sm" />
+                                <span>保存天气配置</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="avatar-modal" class="modal" style="display:none;">
+        <div class="modal-content avatar-modal-content">
+            <div class="modal-header">
+                <h3>选择头像</h3>
+                <button class="btn-close" onclick="closeAvatarModal()"><img src="/static/emoji/Cross mark_3d.png" class="emoji-icon emoji-icon-sm" /></button>
+            </div>
+            <div class="modal-body">
+                <div id="avatar-grid" class="avatar-grid"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeAvatarModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="llm-modal" class="modal" style="display:none;">
+        <div class="modal-content llm-modal-content">
+            <div class="modal-header">
+                <h3 id="llm-modal-title">添加模型配置</h3>
+                <button class="btn-close" onclick="closeLLMModal()"><img src="/static/emoji/Cross mark_3d.png" class="emoji-icon emoji-icon-sm" /></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="llm-edit-id" value="">
+                <div class="form-group">
+                    <label>配置名称</label>
+                    <input type="text" id="llm-name" placeholder="如：我的 OpenAI">
+                </div>
+                <div class="form-group">
+                    <label>服务提供商</label>
+                    <select id="llm-provider" onchange="onProviderChange()">
+                        <option value="">请选择</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="claude">Claude (Anthropic)</option>
+                        <option value="gemini">Gemini (Google)</option>
+                        <option value="ollama">Ollama (本地)</option>
+                    </select>
+                </div>
+                <div class="form-group" id="llm-api-key-group">
+                    <label>API Key</label>
+                    <input type="password" id="llm-api-key" placeholder="sk-...">
+                </div>
+                <div class="form-group" id="llm-base-url-group">
+                    <label>Base URL（可选）</label>
+                    <input type="text" id="llm-base-url" placeholder="自定义接口地址">
+                </div>
+                <div class="form-group">
+                    <label>模型</label>
+                    <select id="llm-model"></select>
+                    <input type="text" id="llm-model-custom" style="display:none;" placeholder="输入模型名称">
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="llm-is-active">
+                        <span>设为当前使用</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeLLMModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveLLMConfig()">保存</button>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        var _providerModels = {};
+        var _editingConfigId = null;
+
+        onPageReady(function() {
+            initSettingsPage();
+            loadCurrentPath();
+            loadLLMConfigs();
+            loadProviderModels();
+            loadWeatherConfig();
+            loadProfileSettings();
+        });
+
+        function loadCurrentPath() {
+            fetch('/api/article/init-paths', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({})
+            })
+            .then(r => r.json())
+            .then(result => {
+                if (result.code === 200 && result.data) {
+                    var el = document.getElementById('resource-path');
+                    if (el) el.value = result.data.article_path.replace(/\\article$/, '');
+                }
+            });
+        }
+
+        function loadProviderModels() {
+            fetch('/api/llm/providers')
+                .then(r => r.json())
+                .then(result => {
+                    if (result.code === 200 && result.data) {
+                        _providerModels = result.data.models || {};
+                    }
+                });
+        }
+
+        function loadLLMConfigs() {
+            fetch('/api/llm/configs')
+                .then(r => r.json())
+                .then(result => {
+                    if (result.code === 200 && result.data) {
+                        renderLLMConfigs(result.data);
+                    }
+                });
+        }
+
+        function renderLLMConfigs(configs) {
+            var container = document.getElementById('llm-config-list');
+            if (!configs || configs.length === 0) {
+                container.innerHTML = '<div class="llm-empty"><img src="/static/emoji/Robot_3d.png" class="emoji-icon emoji-icon-xl" style="margin-bottom:8px" /><p>暂未配置模型，请添加一个模型配置</p></div>';
+                return;
+            }
+            var html = '';
+            configs.forEach(function(c) {
+                var activeClass = c.is_active ? ' is-active' : '';
+                var activeBadge = c.is_active ? '<span class="llm-active-badge">使用中</span>' : '';
+                html += '<div class="llm-config-card' + activeClass + '">' +
+                    '<div class="llm-config-info">' +
+                        '<div class="llm-config-name">' + (c.name || c.provider) + activeBadge + '</div>' +
+                        '<div class="llm-config-detail">' + c.provider + ' · ' + (c.model || '默认') + '</div>' +
+                        '<div class="llm-config-key">Key: ' + (c.api_key || '未设置') + '</div>' +
+                    '</div>' +
+                    '<div class="llm-config-actions">' +
+                        (c.is_active ? '' : '<button class="btn btn-sm btn-secondary" onclick="activateLLMConfig(' + c.id + ')">启用</button>') +
+                        '<button class="btn btn-sm btn-secondary" onclick="testLLMConfig(' + c.id + ')">测试</button>' +
+                        '<button class="btn btn-sm btn-secondary" onclick="editLLMConfig(' + c.id + ')">编辑</button>' +
+                        '<button class="btn btn-sm btn-danger" onclick="deleteLLMConfig(' + c.id + ')">删除</button>' +
+                    '</div>' +
+                '</div>';
+            });
+            container.innerHTML = html;
+        }
+
+        function showAddLLMConfig() {
+            _editingConfigId = null;
+            document.getElementById('llm-modal-title').textContent = '添加模型配置';
+            document.getElementById('llm-edit-id').value = '';
+            document.getElementById('llm-name').value = '';
+            document.getElementById('llm-provider').value = '';
+            document.getElementById('llm-api-key').value = '';
+            document.getElementById('llm-base-url').value = '';
+            document.getElementById('llm-model').innerHTML = '';
+            document.getElementById('llm-is-active').checked = false;
+            onProviderChange();
+            document.getElementById('llm-modal').style.display = 'flex';
+        }
+
+        function editLLMConfig(id) {
+            fetch('/api/llm/configs')
+                .then(r => r.json())
+                .then(result => {
+                    if (result.code !== 200) return;
+                    var configs = result.data;
+                    var config = configs.find(function(c) { return c.id === id; });
+                    if (!config) return;
+
+                    _editingConfigId = id;
+                    document.getElementById('llm-modal-title').textContent = '编辑模型配置';
+                    document.getElementById('llm-edit-id').value = id;
+                    document.getElementById('llm-name').value = config.name || '';
+                    document.getElementById('llm-provider').value = config.provider;
+                    document.getElementById('llm-api-key').value = '';
+                    document.getElementById('llm-base-url').value = config.base_url || '';
+                    document.getElementById('llm-is-active').checked = config.is_active;
+                    onProviderChange();
+                    if (config.model) {
+                        document.getElementById('llm-model').value = config.model;
+                    }
+                    document.getElementById('llm-modal').style.display = 'flex';
+                });
+        }
+
+        function closeLLMModal() {
+            document.getElementById('llm-modal').style.display = 'none';
+            _editingConfigId = null;
+        }
+
+        function onProviderChange() {
+            var provider = document.getElementById('llm-provider').value;
+            var keyGroup = document.getElementById('llm-api-key-group');
+            var urlGroup = document.getElementById('llm-base-url-group');
+            var modelSelect = document.getElementById('llm-model');
+
+            if (provider === 'ollama') {
+                keyGroup.style.display = 'none';
+                urlGroup.style.display = 'block';
+                document.getElementById('llm-base-url').placeholder = 'http://localhost:11434';
+            } else {
+                keyGroup.style.display = 'block';
+                urlGroup.style.display = 'block';
+            }
+
+            var models = _providerModels[provider] || [];
+            var html = '<option value="">默认</option>';
+            models.forEach(function(m) {
+                html += '<option value="' + m + '">' + m + '</option>';
+            });
+            html += '<option value="__custom__">自定义...</option>';
+            modelSelect.innerHTML = html;
+
+            modelSelect.onchange = function() {
+                var custom = document.getElementById('llm-model-custom');
+                if (this.value === '__custom__') {
+                    custom.style.display = 'block';
+                } else {
+                    custom.style.display = 'none';
+                }
+            };
+        }
+
+        function saveLLMConfig() {
+            var provider = document.getElementById('llm-provider').value;
+            if (!provider) { alert('请选择服务提供商'); return; }
+
+            var modelSelect = document.getElementById('llm-model');
+            var model = modelSelect.value;
+            if (model === '__custom__') {
+                model = document.getElementById('llm-model-custom').value;
+            }
+            if (model === '') model = null;
+
+            var data = {
+                provider: provider,
+                name: document.getElementById('llm-name').value || provider,
+                api_key: document.getElementById('llm-api-key').value || '',
+                base_url: document.getElementById('llm-base-url').value || '',
+                model: model,
+                is_active: document.getElementById('llm-is-active').checked,
+            };
+
+            var url = '/api/llm/configs';
+            var method = 'POST';
+            if (_editingConfigId) {
+                url = '/api/llm/configs/' + _editingConfigId;
+                method = 'PUT';
+            }
+
+            fetch(url, {
+                method: method,
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            })
+            .then(r => r.json())
+            .then(result => {
+                if (result.code === 200) {
+                    closeLLMModal();
+                    loadLLMConfigs();
+                } else {
+                    alert(result.message || '保存失败');
+                }
+            });
+        }
+
+        function activateLLMConfig(id) {
+            fetch('/api/llm/configs/' + id, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({is_active: true})
+            })
+            .then(r => r.json())
+            .then(function() { loadLLMConfigs(); });
+        }
+
+        function testLLMConfig(id) {
+            var btn = event.target;
+            var orig = btn.textContent;
+            btn.textContent = '测试中...';
+            btn.disabled = true;
+
+            fetch('/api/llm/configs/' + id + '/test', {method: 'POST'})
+                .then(r => r.json())
+                .then(result => {
+                    btn.textContent = orig;
+                    btn.disabled = false;
+                    if (result.code === 200) {
+                        alert('连接成功！模型回复: ' + (result.data.message || '').substring(0, 100));
+                    } else {
+                        alert('连接失败: ' + result.message);
+                    }
+                })
+                .catch(function() {
+                    btn.textContent = orig;
+                    btn.disabled = false;
+                    alert('请求失败');
+                });
+        }
+
+        function deleteLLMConfig(id) {
+            if (!confirm('确定删除此配置？')) return;
+            fetch('/api/llm/configs/' + id, {method: 'DELETE'})
+                .then(r => r.json())
+                .then(function() { loadLLMConfigs(); });
+        }
+
+        var _selectedWeatherCity = null;
+
+        // 头像选项
+        const profileAvatarOptions = [
+            'smiling_face_3d.png', 'star_3d.png', 'sun_3d.png', 'moon_3d.png',
+            'cloud_3d.png', 'laptop_3d.png', 'Sparkles_3d.png'
+        ];
+
+        function loadProfileSettings() {
+            const savedUsername = localStorage.getItem('blossom-username');
+            const savedAvatar = localStorage.getItem('blossom-avatar');
+            
+            const usernameEl = document.getElementById('profile-username');
+            const avatarImg = document.getElementById('avatar-img');
+            
+            if (usernameEl) {
+                usernameEl.value = savedUsername || '';
+            }
+            
+            if (avatarImg) {
+                avatarImg.src = '/static/emoji/' + (savedAvatar || 'smiling_face_3d.png');
+            }
+        }
+
+        function openAvatarModal() {
+            const modal = document.getElementById('avatar-modal');
+            if (!modal) return;
+            
+            const gridEl = document.getElementById('avatar-grid');
+            if (!gridEl) return;
+            
+            let html = '';
+            profileAvatarOptions.forEach(avatar => {
+                const selected = localStorage.getItem('blossom-avatar') === avatar;
+                html += `<div class="avatar-option-item ${selected ? 'selected' : ''}" 
+                    onclick="selectProfileAvatar('${avatar}')">
+                    <img src="/static/emoji/${avatar}" alt="${avatar}" />
+                </div>`;
+            });
+            gridEl.innerHTML = html;
+            modal.style.display = 'flex';
+        }
+
+        function closeAvatarModal() {
+            const modal = document.getElementById('avatar-modal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        function selectProfileAvatar(avatar) {
+            localStorage.setItem('blossom-avatar', avatar);
+            
+            const avatarImg = document.getElementById('avatar-img');
+            if (avatarImg) {
+                avatarImg.src = '/static/emoji/' + avatar;
+            }
+            
+            updateSidebarAvatar(avatar);
+            closeAvatarModal();
+        }
+
+        function updateSidebarAvatar(avatar) {
+            const sidebarAvatar = document.querySelector('.user-avatar img');
+            if (sidebarAvatar) {
+                sidebarAvatar.src = '/static/emoji/' + avatar;
+            }
+        }
+
+        function saveProfileSettings() {
+            const username = document.getElementById('profile-username').value.trim();
+            localStorage.setItem('blossom-username', username);
+            
+            updateHomeUsername(username);
+            alert('基本信息保存成功！');
+        }
+
+        function updateHomeUsername(username) {
+            const usernameEl = document.querySelector('.user-name');
+            if (usernameEl) {
+                usernameEl.textContent = username || '用户';
+            }
+        }
+
+        function onWeatherKeyFocus(input) {
+            if (input.dataset.masked === 'true') {
+                input.value = '';
+                input.type = 'password';
+                delete input.dataset.masked;
+            }
+        }
+
+        function loadWeatherConfig() {
+            fetch('/api/weather/config')
+                .then(r => r.json())
+                .then(function(result) {
+                    if (result.code === 200 && result.data) {
+                        var d = result.data;
+                        document.getElementById('weather-api-host').value = d.api_host || 'https://devapi.qweather.com';
+                        if (d.api_key && d.api_key !== '') {
+                            document.getElementById('weather-api-key').value = d.api_key;
+                            document.getElementById('weather-api-key').type = 'text';
+                            document.getElementById('weather-api-key').dataset.masked = 'true';
+                        } else {
+                            document.getElementById('weather-api-key').value = '';
+                        }
+                        if (d.city_name) {
+                            _selectedWeatherCity = {id: d.location_id, name: d.city_name};
+                            var el = document.getElementById('weather-selected-city');
+                            el.style.display = 'block';
+                            el.querySelector('span').textContent = '已选择: ' + d.city_name;
+                        }
+                    }
+                });
+        }
+
+        function searchWeatherCity() {
+            var keyword = document.getElementById('weather-city-search').value.trim();
+            if (!keyword) { alert('请输入城市名称'); return; }
+
+            var resultsEl = document.getElementById('weather-city-results');
+            resultsEl.style.display = 'block';
+            resultsEl.innerHTML = '<div style="padding:8px;color:#909399;">搜索中...</div>';
+
+            fetch('/api/weather/city/search?keyword=' + encodeURIComponent(keyword))
+                .then(r => r.json())
+                .then(function(result) {
+                    if (result.code === 200 && result.data && result.data.length > 0) {
+                        var html = '<div style="display:flex;flex-direction:column;gap:4px;">';
+                        result.data.forEach(function(city) {
+                            var label = city.name + ' (' + city.adm1 + ', ' + city.country + ')';
+                            html += '<div class="city-result-item" style="padding:8px 12px;cursor:pointer;border-radius:6px;border:1px solid var(--border-color, #e4e7ed);transition:background 0.2s;" '
+                                + 'onmouseover="this.style.background=\'var(--hover-bg, #f5f7fa)\'" '
+                                + 'onmouseout="this.style.background=\'\'" '
+                                + 'onclick="selectWeatherCity(\'' + city.id + '\', \'' + city.name.replace(/'/g, "\\'") + '\')">'
+                                + label + '</div>';
+                        });
+                        html += '</div>';
+                        resultsEl.innerHTML = html;
+                    } else {
+                        resultsEl.innerHTML = '<div style="padding:8px;color:#909399;">未找到城市，请检查 API Key 或换个关键词</div>';
+                    }
+                })
+                .catch(function() {
+                    resultsEl.innerHTML = '<div style="padding:8px;color:#F56C6C;">搜索失败</div>';
+                });
+        }
+
+        function selectWeatherCity(id, name) {
+            _selectedWeatherCity = {id: id, name: name};
+            document.getElementById('weather-city-results').style.display = 'none';
+            document.getElementById('weather-city-search').value = name;
+            var el = document.getElementById('weather-selected-city');
+            el.style.display = 'block';
+            el.querySelector('span').textContent = '已选择: ' + name;
+        }
+
+        function saveWeatherConfig() {
+            var keyInput = document.getElementById('weather-api-key');
+            var apiKey = keyInput.value.trim();
+            var data = {
+                api_host: document.getElementById('weather-api-host').value.trim() || 'https://devapi.qweather.com',
+            };
+            if (apiKey && apiKey !== '****' && keyInput.dataset.masked !== 'true') {
+                data.api_key = apiKey;
+            } else if (!keyInput.dataset.masked) {
+                data.api_key = apiKey;
+            }
+            if (_selectedWeatherCity) {
+                data.city_name = _selectedWeatherCity.name;
+                data.location_id = _selectedWeatherCity.id;
+            }
+            if (!apiKey && !data.city_name) {
+                alert('请至少填写 API Key 和选择城市');
+                return;
+            }
+
+            fetch('/api/weather/config', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            })
+            .then(r => r.json())
+            .then(function(result) {
+                if (result.code === 200) {
+                    alert('天气配置保存成功！');
+                } else {
+                    alert('保存失败: ' + (result.message || '未知错误'));
+                }
+            })
+            .catch(function() {
+                alert('请求失败');
+            });
+        }
+    </script>
+{% endblock %}

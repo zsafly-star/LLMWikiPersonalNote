@@ -1,0 +1,449 @@
+{% extends "base.html" %}
+
+<style>
+.compile-pros-cons {
+    display: flex;
+    gap: 20px;
+    margin-top: 16px;
+}
+
+.compile-pros-cons .pros,
+.compile-pros-cons .cons {
+    flex: 1;
+}
+
+.compile-pros-cons ul {
+    padding-left: 20px;
+    margin: 8px 0 0 0;
+}
+
+.compile-pros-cons li {
+    font-size: 13px;
+    line-height: 1.6;
+    margin-bottom: 4px;
+}
+
+.pros li {
+    color: #28a745;
+}
+
+.cons li {
+    color: #dc3545;
+}
+
+.compile-info h4 {
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.compile-info p {
+    font-size: 14px;
+    line-height: 1.5;
+    color: #555;
+}
+
+
+</style>
+
+{% block content %}
+<div class="wiki-view">
+    <div class="wiki-sidebar">
+        <div class="wiki-sidebar-header">
+            <span class="wiki-sidebar-title">Wiki</span>
+            <div class="wiki-sidebar-actions">
+                <div class="sidebar-menu-wrapper">
+                    <button class="sidebar-menu-btn" id="compile-btn" onclick="toggleSidebarMenu(event)" title="更多选项">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                    </button>
+                    <div class="sidebar-dropdown" id="sidebar-dropdown">
+                        <button onclick="showCompileConfirm('full')">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg> 全量编译
+                        </button>
+                        <button onclick="showCompileConfirm('incremental')">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg> 增量编译
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="wiki-sidebar-tabs">
+            <div class="wiki-tab active" data-tab="concepts" onclick="switchWikiTab('concepts')">概念</div>
+            <div class="wiki-tab" data-tab="sources" onclick="switchWikiTab('sources')">文章</div>
+            <div class="wiki-tab" data-tab="queries" onclick="switchWikiTab('queries')">查询</div>
+        </div>
+        <div class="wiki-sidebar-search">
+            <input type="text" id="wiki-search" placeholder="搜索..." oninput="filterWikiList()">
+        </div>
+        <div class="wiki-sidebar-list" id="wiki-list"></div>
+        <div class="wiki-compile-status" id="compile-status" style="display:none;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-spin"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+            <span id="compile-status-text">编译中...</span>
+        </div>
+    </div>
+    <div class="wiki-content" id="wiki-content">
+        <div class="wiki-empty">
+            <img src="/static/emoji/Open book_3d.png" class="emoji-icon emoji-icon-xl" />
+            <h3>知识 Wiki</h3>
+            <p>文章目录下的文档会自动作为源文件，点击编译按钮生成知识库</p>
+        </div>
+    </div>
+</div>
+
+<div id="query-modal" class="modal" style="display:none;">
+    <div class="modal-content" style="width:520px;">
+        <div class="modal-header">
+            <h3>Wiki 查询</h3>
+            <button class="btn-close" onclick="closeQueryDialog()" title="关闭">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>提出问题</label>
+                <input type="text" id="query-question" placeholder="你想知道什么？">
+            </div>
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="query-save">
+                    <span>保存结果到 Wiki</span>
+                </label>
+            </div>
+            <div id="query-result" style="display:none;">
+                <div class="query-answer" id="query-answer"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeQueryDialog()">关闭</button>
+            <button class="btn btn-primary" onclick="doQuery()" id="query-btn">查询</button>
+        </div>
+    </div>
+</div>
+
+<div id="compile-confirm-modal" class="modal" style="display:none;">
+    <div class="modal-content" style="width:520px;">
+        <div class="modal-header">
+            <h3 id="compile-confirm-title">确认操作</h3>
+            <button class="btn-close" onclick="closeCompileConfirmDialog()" title="关闭">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div id="compile-confirm-content">
+                <div class="compile-info">
+                    <h4>操作说明</h4>
+                    <p id="compile-description"></p>
+                </div>
+                <div class="compile-pros-cons">
+                    <div class="pros">
+                        <h5><img src="/static/emoji/Check mark_3d.png" class="emoji-icon emoji-icon-sm" /> 优点</h5>
+                        <ul id="compile-pros"></ul>
+                    </div>
+                    <div class="cons">
+                        <h5><img src="/static/emoji/Red exclamation mark_3d.png" class="emoji-icon emoji-icon-sm" /> 注意</h5>
+                        <ul id="compile-cons"></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeCompileConfirmDialog()">取消</button>
+            <button class="btn btn-primary" onclick="confirmCompile()" id="compile-confirm-btn">确认执行</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var currentWikiTab = 'concepts';
+
+onPageReady(function() {
+    loadWikiList();
+    pollCompileStatus();
+
+    var urlParams = new URLSearchParams(window.location.search);
+    var pageSlug = urlParams.get('page');
+    if (pageSlug) {
+        loadPage(pageSlug);
+        window.history.replaceState({}, '', '/wiki');
+    }
+});
+
+function switchWikiTab(tab) {
+    currentWikiTab = tab;
+    document.querySelectorAll('.wiki-tab').forEach(function(t) { t.classList.remove('active'); });
+    document.querySelector('.wiki-tab[data-tab="' + tab + '"]').classList.add('active');
+    loadWikiList();
+}
+
+function loadWikiList() {
+    if (currentWikiTab === 'concepts') {
+        fetch('/api/wiki/pages').then(r => r.json()).then(function(res) {
+            if (res.code === 200) renderWikiList(res.data, 'concepts');
+        });
+    } else if (currentWikiTab === 'sources') {
+        fetch('/api/wiki/sources').then(r => r.json()).then(function(res) {
+            if (res.code === 200) renderWikiList(res.data, 'sources');
+        });
+    } else if (currentWikiTab === 'queries') {
+        fetch('/api/wiki/queries').then(r => r.json()).then(function(res) {
+            if (res.code === 200) renderWikiList(res.data, 'queries');
+        });
+    }
+}
+
+function renderWikiList(items, type) {
+    var list = document.getElementById('wiki-list');
+    if (!items || items.length === 0) {
+        var msgs = {concepts: '暂无概念页面，请先编译', sources: '文章目录下没有 .md 文件', queries: '暂无查询记录'};
+        list.innerHTML = '<div class="wiki-list-empty">' + (msgs[type] || '') + '</div>';
+        return;
+    }
+    var html = '';
+    items.forEach(function(item) {
+        if (type === 'concepts') {
+            html += '<div class="wiki-list-item" data-slug="' + item.slug + '" onclick="loadPage(\'' + item.slug + '\')">' +
+                '<span class="wiki-item-title">' + item.title + '</span>' +
+                '<span class="wiki-item-desc">' + (item.summary || '') + '</span></div>';
+        } else if (type === 'sources') {
+            var statusClass = item.status === 'compiled' ? 'compiled' : 'pending';
+            var statusText = item.status === 'compiled' ? '已编译' : '待编译';
+            html += '<div class="wiki-list-item wiki-source-item">' +
+                '<span class="wiki-item-title">' + item.title + '</span>' +
+                '<span class="wiki-item-status ' + statusClass + '">' + statusText + '</span></div>';
+        } else {
+            html += '<div class="wiki-list-item">' +
+                '<span class="wiki-item-title">' + item.title + '</span></div>';
+        }
+    });
+    list.innerHTML = html;
+}
+
+function filterWikiList() {
+    var q = document.getElementById('wiki-search').value.toLowerCase();
+    document.querySelectorAll('.wiki-list-item').forEach(function(el) {
+        var text = el.textContent.toLowerCase();
+        el.style.display = text.indexOf(q) >= 0 ? '' : 'none';
+    });
+}
+
+function highlightListItem(slug) {
+    document.querySelectorAll('.wiki-list-item').forEach(function(el) {
+        el.classList.remove('active');
+    });
+    var activeItem = document.querySelector('.wiki-list-item[data-slug="' + slug + '"]');
+    if (activeItem) {
+        activeItem.classList.add('active');
+    }
+}
+
+function loadPage(slug) {
+    fetch('/api/wiki/pages/' + slug).then(r => r.json()).then(function(res) {
+        if (res.code !== 200) return;
+        var data = res.data;
+
+        setTimeout(function() { highlightListItem(slug); }, 100);
+
+        var content = document.getElementById('wiki-content');
+        var linksHtml = '';
+        if (data.links && data.links.length > 0) {
+            linksHtml = '<div class="wiki-page-links"><strong>相关概念:</strong> ';
+            data.links.forEach(function(l) {
+                var ls = l.toLowerCase().replace(/ /g, '_').replace(/\//g, '_');
+                linksHtml += '<a class="wiki-link" onclick="loadPage(\'' + ls + '\')">' + l + '</a> ';
+            });
+            linksHtml += '</div>';
+        }
+        var sourcesHtml = '';
+        if (data.sources && data.sources.length > 0) {
+            sourcesHtml = '<div class="wiki-page-sources"><strong>来源:</strong> ' + data.sources.join(', ') + '</div>';
+        }
+        content.innerHTML = '<div class="wiki-page">' +
+            '<div class="wiki-page-header">' +
+                '<h1>' + data.title + '</h1>' +
+                '<div class="wiki-page-meta">' +
+                    '<span class="wiki-page-kind">' + (data.kind || 'concept') + '</span>' +
+                    (data.confidence ? '<span class="wiki-page-confidence">置信度: ' + (data.confidence * 100).toFixed(0) + '%</span>' : '') +
+                '</div>' +
+                (data.summary ? '<p class="wiki-page-summary">' + data.summary + '</p>' : '') +
+            '</div>' +
+            '<div class="wiki-page-body">' + renderMarkdown(data.body || '') + '</div>' +
+            linksHtml + sourcesHtml +
+            '<div class="wiki-page-actions">' +
+                '<button class="btn btn-sm btn-secondary" onclick="showQueryForPage(\'' + data.title + '\')"><img src="/static/emoji/Red question mark_3d.png" class="emoji-icon emoji-icon-sm" /> 提问</button>' +
+            '</div>' +
+        '</div>';
+    });
+}
+
+function renderMarkdown(text) {
+    if (!text) return '';
+    var html = text
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/## (.+)/g, '<h2>$1</h2>')
+        .replace(/### (.+)/g, '<h3>$1</h3>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/`(.+?)`/g, '<code>$1</code>')
+        .replace(/\[\[(.+?)\]\]/g, '<a class="wiki-link" onclick="loadPage(\'$1\'.toLowerCase().replace(/ /g,\'_\'))">$1</a>')
+        .replace(/^- (.+)$/gm, '<li>$1</li>')
+        .replace(/\n\n/g, '<br><br>')
+        .replace(/\n/g, '<br>');
+    return html;
+}
+
+var currentCompileType = '';
+
+var compileOptions = {
+    'full': {
+        title: '全量编译',
+        description: '重新编译所有文章，生成全新的知识库。所有现有概念页面将被重新生成。',
+        pros: ['确保知识库完全同步', '可以修复可能存在的概念关联问题', '适用于大规模文章更新后'],
+        cons: ['消耗较多 LLM API 调用次数', '耗时较长', '会覆盖所有现有概念页面']
+    },
+    'incremental': {
+        title: '增量编译',
+        description: '仅编译内容发生变化的文章，更新相关的概念页面。',
+        pros: ['节省 LLM API 调用次数', '速度较快', '只影响变化的部分'],
+        cons: ['可能遗漏跨文章的概念关联变化', '首次编译时效果同全量编译']
+    }
+};
+
+function showCompileConfirm(type) {
+    currentCompileType = type;
+    var option = compileOptions[type];
+
+    var dd = document.getElementById('sidebar-dropdown');
+    if (dd) dd.classList.remove('show');    
+    document.getElementById('compile-confirm-title').textContent = '确认' + option.title;
+    document.getElementById('compile-description').textContent = option.description;
+    
+    var prosList = document.getElementById('compile-pros');
+    prosList.innerHTML = option.pros.map(p => '<li>' + p + '</li>').join('');
+    
+    var consList = document.getElementById('compile-cons');
+    consList.innerHTML = option.cons.map(c => '<li>' + c + '</li>').join('');
+    
+    document.getElementById('compile-confirm-modal').style.display = 'flex';
+}
+
+function closeCompileConfirmDialog() {
+    document.getElementById('compile-confirm-modal').style.display = 'none';
+    currentCompileType = '';
+}
+
+function confirmCompile() {
+    if (!currentCompileType) return;
+    
+    var btn = document.getElementById('compile-confirm-btn');
+    btn.disabled = true;
+    btn.textContent = '执行中...';
+    
+    var data = {};
+    if (currentCompileType === 'full') {
+        data.incremental = false;
+    } else if (currentCompileType === 'incremental') {
+        data.incremental = true;
+    }
+    
+    fetch('/api/wiki/compile', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(function(res) {
+        closeCompileConfirmDialog();
+        btn.disabled = false;
+        btn.textContent = '确认执行';
+        
+        if (res.code !== 200) {
+            alert(res.message || '操作失败');
+            return;
+        }
+        if (res.data.status === 'already_running') {
+            alert('编译正在进行中，请稍候');
+        } else {
+            document.getElementById('compile-btn').innerHTML = '<img src="/static/emoji/Clockwise vertical arrows_3d.png" class="emoji-icon emoji-spin" />';
+            pollCompileStatus();
+        }
+    })
+    .catch(function(error) {
+        closeCompileConfirmDialog();
+        btn.disabled = false;
+        btn.textContent = '确认执行';
+        alert('网络请求失败，请稍后重试');
+    });
+}
+
+function pollCompileStatus() {
+    fetch('/api/wiki/status').then(r => r.json()).then(function(res) {
+        if (res.code !== 200) return;
+        var s = res.data;
+        var el = document.getElementById('compile-status');
+        var textEl = document.getElementById('compile-status-text');
+        var btn = document.getElementById('compile-btn');
+
+        if (s.running) {
+            el.style.display = 'flex';
+            textEl.textContent = s.progress || '编译中...';
+            btn.disabled = true;
+            btn.innerHTML = '<img src="/static/emoji/Clockwise vertical arrows_3d.png" class="emoji-icon emoji-spin" />';
+            if (currentWikiTab === 'sources') loadWikiList();
+            setTimeout(pollCompileStatus, 2000);
+        } else {
+            el.style.display = 'none';
+            btn.disabled = false;
+            btn.innerHTML = '<img src="/static/emoji/more.png" class="emoji-icon" />';
+            if (s.progress && s.progress.indexOf('失败') >= 0) {
+                var errorMsg = s.progress;
+                if (s.errors && s.errors.length > 0) {
+                    errorMsg += '\n\n详细错误：\n' + s.errors.join('\n');
+                }
+                alert(errorMsg);
+            } else if (s.progress && s.progress.indexOf('无需编译') >= 0) {
+                alert('所有文件已是最新，无需编译');
+            } else {
+                loadWikiList();
+            }
+        }
+    });
+}
+
+function showQueryForPage(title) {
+    document.getElementById('query-question').value = '关于 ' + title + '，请详细说明';
+    document.getElementById('query-result').style.display = 'none';
+    document.getElementById('query-modal').style.display = 'flex';
+}
+
+function closeQueryDialog() {
+    document.getElementById('query-modal').style.display = 'none';
+}
+
+function doQuery() {
+    var question = document.getElementById('query-question').value;
+    if (!question) { alert('请输入问题'); return; }
+
+    var save = document.getElementById('query-save').checked;
+    var btn = document.getElementById('query-btn');
+    btn.disabled = true;
+    btn.textContent = '查询中...';
+
+    fetch('/api/wiki/query', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({question: question, save: save})
+    }).then(r => r.json()).then(function(res) {
+        btn.disabled = false;
+        btn.textContent = '查询';
+        if (res.code === 200) {
+            document.getElementById('query-answer').innerHTML = renderMarkdown(res.data.answer || '');
+            document.getElementById('query-result').style.display = 'block';
+        } else {
+            alert(res.message || '查询失败');
+        }
+    });
+}
+
+</script>
+{% endblock %}

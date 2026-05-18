@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="dashboard-container" id="dashboard">
+        <!-- 天气时间区域 -->
+        <div class="dashboard-card weather-time-card" data-id="time-weather" data-size="1x1" draggable="true" style="grid-column: span 1; grid-row: span 1; border: none !important; outline: none !important;">
+            <div class="weather-time-content">
+                <div class="time-section">
+                    <div class="time-section-top">
+                        <div class="time-date" id="current-date">5月6日</div>
+                        <div class="time-weekday" id="current-weekday">星期二</div>
+                    </div>
+                    <div class="time-clock" id="current-time">22:24</div>
+                    <div class="time-section-bottom">
+                        <div class="greetings" id="greeting">晚上好</div>
+                        <div class="user-name" id="user-name">念念</div>
+                    </div>
+                </div>
+                <div class="weather-forecast-container" id="weather-forecast">
+                    <div class="forecast-city-bar">
+                        <div class="city-info">
+                            <span class="weather-city" id="current-city">未配置</span>
+                            <span class="weather-condition" id="weather-condition"></span>
+                            <button class="weather-refresh-btn" id="weather-refresh" title="刷新天气">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="forecast-cards-row">
+                        <div class="forecast-card today">
+                            <div class="forecast-day">今天</div>
+                            <div class="today-icon-wrap">
+                                <img class="forecast-icon today-icon" id="today-icon" src="" alt="天气图标" draggable="false" />
+                            </div>
+                            <div class="forecast-temp-block">
+                                <span class="temp-high" id="main-temp-value">--</span><span class="temp-unit">°C</span>
+                            </div>
+                        </div>
+                        <div class="forecast-card">
+                            <div class="forecast-day">明天</div>
+                            <img class="forecast-icon" src="" alt="天气图标" draggable="false" />
+                            <div class="forecast-temp-vertical">
+                                <span class="temp-low">--</span><span class="temp-unit-sm">°C</span>
+                                <span class="temp-sep">~</span>
+                                <span class="temp-high">--</span><span class="temp-unit-sm">°C</span>
+                            </div>
+                            <div class="forecast-desc"></div>
+                        </div>
+                        <div class="forecast-card">
+                            <div class="forecast-day">后天</div>
+                            <img class="forecast-icon" src="" alt="天气图标" draggable="false" />
+                            <div class="forecast-temp-vertical">
+                                <span class="temp-low">--</span><span class="temp-unit-sm">°C</span>
+                                <span class="temp-sep">~</span>
+                                <span class="temp-high">--</span><span class="temp-unit-sm">°C</span>
+                            </div>
+                            <div class="forecast-desc"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 文章收藏 -->
+        <div class="dashboard-card" data-id="article-stars" data-size="1x1" draggable="true" style="grid-column: span 1; grid-row: span 1;">
+            <div class="card-header">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                <span>文章收藏</span>
+            </div>
+            <div class="card-content">
+                <div class="article-stars-root">
+                    <div style="padding: 20px; text-align: center; color: #909399; font-size: 13px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 8px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <p>暂无收藏文档</p>
+                    </div>
+                </div>
+            </div>
+            </div>
+        </div>
+
+        <!-- 专题收藏 -->
+        <div class="dashboard-card" data-id="subject-stars" data-size="1x1" draggable="true" style="grid-column: span 1; grid-row: span 1;">
+            <div class="card-header">
+                <img src="/static/emoji/Open book_3d.png" class="card-icon" />
+                <span>专题收藏</span>
+            </div>
+            <div class="card-content">
+                <div class="home-subject-root">
+                    <div class="subject-card">
+                        <div class="progress" style="width: 75%"></div>
+                        <div class="seal">Elastic</div>
+                        <div class="inner"></div>
+                        <img src="/static/emoji/Page facing up_3d.png" class="subject-icon" />
+                        <div class="infos words"><img src="/static/emoji/Pen_3d.png" class="emoji-icon emoji-icon-sm" /> 4567</div>
+                        <div class="infos time"><img src="/static/emoji/Alarm clock_3d.png" class="emoji-icon emoji-icon-sm" /> 2024-04-19</div>
+                    </div>
+                    <div class="subject-card">
+                        <div class="progress" style="width: 85%"></div>
+                        <div class="seal">Sentinel</div>
+                        <div class="inner"></div>
+                        <img src="/static/emoji/Page facing up_3d.png" class="subject-icon" />
+                        <div class="infos words"><img src="/static/emoji/Pen_3d.png" class="emoji-icon emoji-icon-sm" /> 3256</div>
+                        <div class="infos time"><img src="/static/emoji/Alarm clock_3d.png" class="emoji-icon emoji-icon-sm" /> 2024-04-18</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 网页收藏 -->
+        <div class="dashboard-card" data-id="web-stars" data-size="1x1" draggable="true" style="grid-column: span 1; grid-row: span 1;">
+            <div class="card-header">
+                <img src="/static/emoji/Globe showing Americas_3d.png" class="card-icon" />
+                <span>网页收藏</span>
+            </div>
+            <div class="card-content">
+                <div class="web-stars-list">
+                    <div class="web-item">
+                        <img src="/static/emoji/Link_3d.png" class="emoji-icon emoji-icon-sm" />
+                        <span>GitHub</span>
+                    </div>
+                    <div class="web-item">
+                        <img src="/static/emoji/Link_3d.png" class="emoji-icon emoji-icon-sm" />
+                        <span>Stack Overflow</span>
+                    </div>
+                    <div class="web-item">
+                        <img src="/static/emoji/Link_3d.png" class="emoji-icon emoji-icon-sm" />
+                        <span>MDN Web Docs</span>
+                    </div>
+                    <div class="web-item">
+                        <img src="/static/emoji/Link_3d.png" class="emoji-icon emoji-icon-sm" />
+                        <span>LeetCode</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 待办事项 -->
+        <div class="dashboard-card" data-id="todo-list" data-size="1x1" draggable="true" style="grid-column: span 1; grid-row: span 1;">
+            <div class="card-header">
+                <img src="/static/emoji/Check mark_3d.png" class="card-icon" />
+                <span>待办事项</span>
+            </div>
+            <div class="card-content">
+                <div class="todo-list-container">
+                    <div class="todo-item">
+                        <input type="checkbox" id="todo1">
+                        <label for="todo1">完成项目报告</label>
+                    </div>
+                    <div class="todo-item">
+                        <input type="checkbox" id="todo2" checked>
+                        <label for="todo2">代码审查</label>
+                    </div>
+                    <div class="todo-item">
+                        <input type="checkbox" id="todo3">
+                        <label for="todo3">更新文档</label>
+                    </div>
+                    <div class="todo-item">
+                        <input type="checkbox" id="todo4">
+                        <label for="todo4">团队会议</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 字数统计和热力图 -->
+        <div class="dashboard-card" data-id="stats" data-size="2x1" draggable="true" style="grid-column: span 2; grid-row: span 1;">
+            <div class="card-header">
+                <img src="/static/emoji/Bar chart_3d.png" class="card-icon" />
+                <span>数据统计</span>
+            </div>
+            <div class="card-content stats-content">
+                <div class="stats-left">
+                    <div class="stat-item">
+                        <div class="stat-value">12,345</div>
+                        <div class="stat-label">总字数</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">45</div>
+                        <div class="stat-label">文章数</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">2.3k</div>
+                        <div class="stat-label">今日字数</div>
+                    </div>
+                </div>
+                <div class="stats-right">
+                    <canvas id="heatmap-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        // 首页初始化
+        onPageReady(function() {
+            initNavigation();
+            initCharts();
+            updateTime();
+            setInterval(updateTime, 1000);
+            initDragAndDrop();
+            initResizeCards();
+            renderFavoritesCard();
+            initSettings();
+            initCitySelector();
+            initSettingsPage();
+            loadSavedTheme();
+            loadSavedLayout();
+            loadQWeather();
+            loadAvatar();
+            loadUsername();
+        });
+    </script>
+{% endblock %}

@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>知识管理系统</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="index-root">
+        <!-- 左侧边栏 -->
+        <div class="index-aside">
+            <div class="index-aside-root">
+                <div class="aside-item-container aside-item-container-light">
+                    <div class="aside-item item-menu-container">
+                        <div class="aside-item item-user top-user">
+                            <div class="user-avatar">
+                                <img src="/static/emoji/smiling_face_3d.png" alt="用户头像" />
+                            </div>
+                        </div>
+                        <div class="item-menu iconbl is-active active-shadow-light" data-view="home">
+                            <img src="/static/emoji/home_3d.png" alt="首页" class="menu-icon" />
+                            <span>首页</span>
+                        </div>
+                        <div class="item-menu iconbl" data-view="article">
+                            <img src="/static/emoji/bookmark_3d.png" alt="文章" class="menu-icon" />
+                            <span>文章</span>
+                        </div>
+                        <div class="item-menu iconbl" data-view="picture">
+                            <img src="/static/emoji/picture_3d.png" alt="图片" class="menu-icon" />
+                            <span>图片</span>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="aside-item item-menu item-setting" data-view="settings">
+                            <img src="/static/emoji/Gear_3d.png" alt="设置" class="menu-icon" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主内容区 -->
+        <div class="index-main-container">
+            <!-- 首页视图 -->
+            <div id="view-home" class="view active">
+                <div class="dashboard-container" id="dashboard">
+                    <!-- 天气时间区域 -->
+                    <div class="dashboard-card weather-time-card" data-id="time-weather" data-size="2x1" draggable="true" style="grid-column: span 2; grid-row: span 1;">
+                        <div class="weather-time-content">
+                            <div class="time-section">
+                                <div class="greetings" id="greeting">早上好</div>
+                                <div class="now-time" id="current-time">2024年4月28日 22:24:19</div>
+                                <div class="user-name">念念</div>
+                            </div>
+                            <div class="weather-section">
+                                <div class="main-weather-display">
+                                    <div class="main-weather-icon">
+                                        <img src="/static/emoji/sun_3d.png" alt="天气图标" />
+                                    </div>
+                                    <div class="main-weather-details">
+                                        <div class="main-temp">
+                                            <span class="temp-value" id="main-temp-value">12</span>
+                                            <span class="temp-unit">°C</span>
+                                        </div>
+                                        <div class="weather-city" id="current-city">北京市</div>
+                                        <div class="weather-condition" id="weather-condition">晴朗</div>
+                                    </div>
+                                </div>
+                                <div class="weather-forecast-container" id="weather-forecast">
+                                    <div class="forecast-card">
+                                        <div class="forecast-day">昨天</div>
+                                        <img src="/static/emoji/sun_3d.png" alt="晴天" class="forecast-icon" />
+                                        <div class="forecast-temp">
+                                            <span>27</span>°
+                                            <span class="low">16°</span>
+                                        </div>
+                                    </div>
+                                    <div class="forecast-card today">
+                                        <div class="forecast-day">今天</div>
+                                        <img src="/static/emoji/cloud_3d.png" alt="多云" class="forecast-icon" />
+                                        <div class="forecast-temp">
+                                            <span>22</span>°
+                                            <span class="low">14°</span>
+                                        </div>
+                                    </div>
+                                    <div class="forecast-card">
+                                        <div class="forecast-day">明天</div>
+                                        <img src="/static/emoji/cloud_3d.png" alt="阴天" class="forecast-icon" />
+                                        <div class="forecast-temp">
+                                            <span>25</span>°
+                                            <span class="low">16°</span>
+                                        </div>
+                                    </div>
+                                    <div class="forecast-card">
+                                        <div class="forecast-day">后天</div>
+                                        <img src="/static/emoji/cloud_3d.png" alt="多云" class="forecast-icon" />
+                                        <div class="forecast-temp">
+                                            <span>23</span>°
+                                            <span class="low">15°</span>
+                                        </div>
+                                    </div>
+                                    <div class="forecast-card">
+                                        <div class="forecast-day">大后天</div>
+                                        <img src="/static/emoji/sun_3d.png" alt="晴天" class="forecast-icon" />
+                                        <div class="forecast-temp">
+                                            <span>28</span>°
+                                            <span class="low">17°</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 文章收藏 -->
+                    <div class="dashboard-card" data-id="article-stars" data-size="1x1" draggable="true" style="grid-column: span 1; grid-row: span 1;">
+                        <div class="card-header">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="card-icon"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            <span>文章收藏</span>
+                        </div>
+                        <div class="card-content">
+                            <div class="article-stars-root">
+                                <div style="padding: 20px; text-align: center; color: var(--color-muted); font-size: 13px;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 8px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                                    <p>暂无收藏文档</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 专题收藏 -->
+                    <div class="dashboard-card" data-id="subject-stars" data-size="1x1" draggable="true" style="grid-column: span 1; grid-row: span 1;">
+                        <div class="card-header">
+                            <img src="/static/emoji/Open book_3d.png" class="card-icon" />
+                            <span>专题收藏</span>
+                        </div>
+                        <div class="card-content">
+                            <div class="home-subject-root">
+                                <div class="subject-card">
+                                    <div class="progress" style="width: 75%"></div>
+                                    <div class="seal">Elastic</div>
+                                    <div class="inner"></div>
+                                    <img src="/static/emoji/File code_3d.png" class="subject-icon" />
+                                    <div class="infos words"><img src="/static/emoji/Pen_3d.png" class="emoji-icon emoji-icon-sm" /> 4567</div>
+                                    <div class="infos time"><img src="/static/emoji/Alarm clock_3d.png" class="emoji-icon emoji-icon-sm" /> 2024-04-19</div>
+                                </div>
+                                <div class="subject-card">
+                                    <div class="progress" style="width: 85%"></div>
+                                    <div class="seal">Sentinel</div>
+                                    <div class="inner"></div>
+                                    <img src="/static/emoji/Page facing up_3d.png" class="subject-icon" />
+                                    <div class="infos words"><img src="/static/emoji/Pen_3d.png" class="emoji-icon emoji-icon-sm" /> 3256</div>
+                                    <div class="infos time"><img src="/static/emoji/Alarm clock_3d.png" class="emoji-icon emoji-icon-sm" /> 2024-04-18</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 网页收藏 -->
+                    <div class="dashboard-card" data-id="web-stars" data-size="1x1" draggable="true" style="grid-column: span 1; grid-row: span 1;">
+                        <div class="card-header">
+                            <img src="/static/emoji/Globe showing Americas_3d.png" class="card-icon" />
+                            <span>网页收藏</span>
+                        </div>
+                        <div class="card-content">
+                            <div class="web-stars-list">
+                                <div class="web-item">
+                                    <img src="/static/emoji/Link_3d.png" class="emoji-icon emoji-icon-sm" />
+                                    <span>GitHub</span>
+                                </div>
+                                <div class="web-item">
+                                    <img src="/static/emoji/Link_3d.png" class="emoji-icon emoji-icon-sm" />
+                                    <span>Stack Overflow</span>
+                                </div>
+                                <div class="web-item">
+                                    <img src="/static/emoji/Link_3d.png" class="emoji-icon emoji-icon-sm" />
+                                    <span>MDN Web Docs</span>
+                                </div>
+                                <div class="web-item">
+                                    <img src="/static/emoji/Link_3d.png" class="emoji-icon emoji-icon-sm" />
+                                    <span>LeetCode</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 待办事项 -->
+                    <div class="dashboard-card" data-id="todo-list" data-size="1x1" draggable="true" style="grid-column: span 1; grid-row: span 1;">
+                        <div class="card-header">
+                            <img src="/static/emoji/Check mark_3d.png" class="card-icon" />
+                            <span>待办事项</span>
+                        </div>
+                        <div class="card-content">
+                            <div class="todo-list-container">
+                                <div class="todo-item">
+                                    <input type="checkbox" id="todo1">
+                                    <label for="todo1">完成项目报告</label>
+                                </div>
+                                <div class="todo-item">
+                                    <input type="checkbox" id="todo2" checked>
+                                    <label for="todo2">代码审查</label>
+                                </div>
+                                <div class="todo-item">
+                                    <input type="checkbox" id="todo3">
+                                    <label for="todo3">更新文档</label>
+                                </div>
+                                <div class="todo-item">
+                                    <input type="checkbox" id="todo4">
+                                    <label for="todo4">团队会议</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 字数统计和热力图 -->
+                    <div class="dashboard-card" data-id="stats" data-size="2x1" draggable="true" style="grid-column: span 2; grid-row: span 1;">
+                        <div class="card-header">
+                            <img src="/static/emoji/Bar chart_3d.png" class="card-icon" />
+                            <span>数据统计</span>
+                        </div>
+                        <div class="card-content stats-content">
+                            <div class="stats-left">
+                                <div class="stat-item">
+                                    <div class="stat-value">12,345</div>
+                                    <div class="stat-label">总字数</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">45</div>
+                                    <div class="stat-label">文章数</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value">2.3k</div>
+                                    <div class="stat-label">今日字数</div>
+                                </div>
+                            </div>
+                            <div class="stats-right">
+                                <canvas id="heatmap-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 文章视图 -->
+            <div id="view-article" class="view article-main-view">
+                <div class="article-sidebar">
+                    <div class="sidebar-header">
+                        <div class="sidebar-search">
+                            <img src="/static/emoji/Magnifying glass tilted right_3d.png" class="emoji-icon" />
+                            <input type="text" id="tree-search" placeholder="搜索文件或文件夹..." oninput="filterDocTree()" />
+                        </div>
+                        <div class="sidebar-menu-wrapper">
+                            <button class="sidebar-menu-btn" onclick="toggleSidebarMenu(event)">
+                                <img src="/static/emoji/more.png" class="emoji-icon" />
+                            </button>
+                            <div class="sidebar-dropdown" id="sidebar-dropdown">
+                                <button onclick="showNewKnowledgeBaseModal()">
+                                    <img src="/static/emoji/File folder_3d.png" class="emoji-icon emoji-icon-sm" /> 新建知识库
+                                </button>
+                                <button onclick="showNewDocumentModal()">
+                                    <img src="/static/emoji/Page facing up_3d.png" class="emoji-icon emoji-icon-sm" /> 新建文档
+                                </button>
+                                <div class="sidebar-dropdown-sep"></div>
+                                <button onclick="refreshDocTree()">
+                                    <img src="/static/emoji/Clockwise vertical arrows_3d.png" class="emoji-icon emoji-icon-sm" /> 刷新
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sidebar-tree" id="doc-tree">
+                        <div class="tree-loading" id="tree-loading">
+                            <img src="/static/emoji/Clockwise vertical arrows_3d.png" class="emoji-icon emoji-icon-sm emoji-spin" />
+                            <span>加载中...</span>
+                        </div>
+                        <div class="tree-empty" id="tree-empty" style="display: none;">
+                            <img src="/static/emoji/File folder_3d.png" class="emoji-icon" />
+                            <span>暂无目录</span>
+                        </div>
+                        <ul class="tree-list" id="tree-list" style="display: none;"></ul>
+                    </div>
+                </div>
+                <div class="article-content">
+                    <div class="content-body" id="article-content">
+                        <div class="empty-content">
+                            <img src="/static/emoji/Page facing up_3d.png" class="emoji-icon emoji-icon-xl" />
+                            <p>请在左侧选择一篇文章</p>
+                        </div>
+                    </div>
+                    <div class="article-toc" id="article-toc">
+                        <div class="toc-list" id="toc-list"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 图片视图 -->
+            <div id="view-picture" class="view">
+                <div class="picture-view">
+                    <div class="view-header">
+                        <h2>图片管理</h2>
+                    </div>
+                    <div class="picture-container">
+                        <div class="empty-state">
+                            <img src="/static/emoji/picture_3d.png" class="emoji-icon emoji-icon-xl" />
+                            <p>暂无图片</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 待办视图 -->
+            <div id="view-todo" class="view">
+                <div class="todo-view">
+                    <div class="view-header">
+                        <h2>待办事项</h2>
+                        <button class="btn btn-primary" onclick="addTodo()">
+                            <img src="/static/emoji/Plus_3d.png" class="emoji-icon emoji-icon-sm" /> 添加待办
+                        </button>
+                    </div>
+                    <div class="todo-container">
+                        <div class="empty-state">
+                            <img src="/static/emoji/Check mark_3d.png" class="emoji-icon emoji-icon-xl" />
+                            <p>暂无待办事项</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 计划视图 -->
+            <div id="view-plan" class="view">
+                <div class="plan-view">
+                    <div class="view-header">
+                        <h2>计划管理</h2>
+                    </div>
+                    <div class="plan-container">
+                        <div class="empty-state">
+                            <img src="/static/emoji/Calendar_3d.png" class="emoji-icon emoji-icon-xl" />
+                            <p>暂无计划</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 笔记视图 -->
+            <div id="view-note" class="view">
+                <div class="note-view">
+                    <div class="view-header">
+                        <h2>笔记管理</h2>
+                        <button class="btn btn-primary" onclick="addNote()">
+                            <img src="/static/emoji/Plus_3d.png" class="emoji-icon emoji-icon-sm" /> 添加笔记
+                        </button>
+                    </div>
+                    <div class="note-container">
+                        <div class="empty-state">
+                            <img src="/static/emoji/Page with curl_3d.png" class="emoji-icon emoji-icon-xl" />
+                            <p>暂无笔记</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 设置视图 -->
+            <div id="view-settings" class="view settings-view">
+                <div class="settings-container">
+                    <div class="settings-sidebar">
+                        <div class="settings-menu-header">
+                            <img src="/static/emoji/Gear_3d.png" class="emoji-icon" />
+                            <span>设置</span>
+                        </div>
+                        <div class="settings-menu-list">
+                            <div class="settings-menu-item active" data-setting="theme">
+                                <img src="/static/emoji/Artist palette_3d.png" class="emoji-icon emoji-icon-sm" />
+                                <span>主题设置</span>
+                            </div>
+                            <div class="settings-menu-item" data-setting="paths">
+                                <img src="/static/emoji/Open file folder_3d.png" class="emoji-icon emoji-icon-sm" />
+                                <span>路径设置</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="settings-content-wrapper">
+                        <div class="settings-content">
+                            <!-- 主题设置 -->
+                            <div id="setting-theme" class="setting-content-section">
+                                <div class="section-header">
+                                    <h3>主题设置</h3>
+                                    <p class="section-desc">选择您喜欢的界面主题</p>
+                                </div>
+                                <div class="theme-options">
+                                    <div class="theme-card active" data-theme="green">
+                                        <div class="theme-preview">
+                                            <div class="theme-color" style="background: linear-gradient(135deg, #48bb78, #38a169)"></div>
+                                        </div>
+                                        <div class="theme-info">
+                                            <div class="theme-name">清新绿色</div>
+                                            <div class="theme-desc">简约清新的绿色主题</div>
+                                        </div>
+                                        <div class="theme-check">
+                                            <img src="/static/emoji/Check mark_3d.png" class="emoji-icon emoji-icon-sm" />
+                                        </div>
+                                    </div>
+                                    <div class="theme-card" data-theme="pink">
+                                        <div class="theme-preview">
+                                            <div class="theme-color" style="background: linear-gradient(135deg, #f687b3, #ed64a6)"></div>
+                                        </div>
+                                        <div class="theme-info">
+                                            <div class="theme-name">甜美粉色</div>
+                                            <div class="theme-desc">温馨甜美的粉色主题</div>
+                                        </div>
+                                        <div class="theme-check">
+                                            <img src="/static/emoji/Check mark_3d.png" class="emoji-icon emoji-icon-sm" />
+                                        </div>
+                                    </div>
+                                    <div class="theme-card" data-theme="dark-teal">
+                                        <div class="theme-preview">
+                                            <div class="theme-color" style="background: linear-gradient(135deg, #1E293B, #2DD4BF)"></div>
+                                        </div>
+                                        <div class="theme-info">
+                                            <div class="theme-name">暗夜青绿</div>
+                                            <div class="theme-desc">深邃沉稳的暗色青绿主题</div>
+                                        </div>
+                                        <div class="theme-check">
+                                            <img src="/static/emoji/Check mark_3d.png" class="emoji-icon emoji-icon-sm" />
+                                        </div>
+                                    </div>
+                                    <div class="theme-card" data-theme="dark-pink">
+                                        <div class="theme-preview">
+                                            <div class="theme-color" style="background: linear-gradient(135deg, #2D1225, #F472B6)"></div>
+                                        </div>
+                                        <div class="theme-info">
+                                            <div class="theme-name">暗夜玫瑰</div>
+                                            <div class="theme-desc">神秘优雅的暗色粉红主题</div>
+                                        </div>
+                                        <div class="theme-check">
+                                            <img src="/static/emoji/Check mark_3d.png" class="emoji-icon emoji-icon-sm" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 路径设置 -->
+                            <div id="setting-paths" class="setting-content-section" style="display: none;">
+                                <div class="section-header">
+                                    <h3>路径设置</h3>
+                                    <p class="section-desc">配置文件存储路径</p>
+                                </div>
+                                <div class="path-setting">
+                                    <label>文章路径</label>
+                                    <div class="path-input-group">
+                                        <input type="text" id="article-path" placeholder="请输入文章存储路径">
+                                        <button class="btn btn-secondary" onclick="browseArticlePath()">
+                                            <img src="/static/emoji/Open file folder_3d.png" class="emoji-icon emoji-icon-sm" />
+                                            <span>浏览...</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="path-setting">
+                                    <label>图片路径</label>
+                                    <div class="path-input-group">
+                                        <input type="text" id="image-path" placeholder="请输入图片存储路径">
+                                        <button class="btn btn-secondary" onclick="browseImagePath()">
+                                            <img src="/static/emoji/Open file folder_3d.png" class="emoji-icon emoji-icon-sm" />
+                                            <span>浏览...</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="path-actions">
+                                    <button class="btn btn-primary" onclick="savePaths()">
+                                        <img src="/static/emoji/Floppy disk_3d.png" class="emoji-icon emoji-icon-sm" />
+                                        <span>保存设置</span>
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="resetPaths()">
+                                        <img src="/static/emoji/Clockwise vertical arrows_3d.png" class="emoji-icon emoji-icon-sm" />
+                                        <span>恢复默认</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="modal" id="modal-folder-settings">
+        <div class="modal-content folder-settings-modal">
+            <div class="modal-header">
+                <h3>知识库</h3>
+                <button class="btn-close" onclick="closeFolderSettings()"><img src="/static/emoji/Cross mark_3d.png" class="emoji-icon emoji-icon-sm" /></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="icon-picker-hover" id="icon-picker">
+                        <div class="icon-preview" id="icon-preview">
+                            <img src="" alt="icon" />
+                        </div>
+                        <div class="icon-dropdown" id="icon-dropdown">
+                            <div class="icon-grid" id="icon-grid"></div>
+                        </div>
+                    </div>
+                    <div class="form-group form-group-flex">
+                        <label>名称</label>
+                        <input type="text" class="form-input" id="folder-name" placeholder="文件夹名称" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>简介</label>
+                    <textarea class="form-textarea" id="folder-description" rows="3" placeholder="文件夹简介..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeFolderSettings()">取消</button>
+                <button class="btn btn-primary" onclick="saveFolderSettings()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="modal-create-item">
+        <div class="modal-content create-modal">
+            <div class="modal-header">
+                <h3 id="create-modal-title">新建</h3>
+                <button class="btn-close" onclick="closeCreateModal()"><img src="/static/emoji/Cross mark_3d.png" class="emoji-icon emoji-icon-sm" /></button>
+            </div>
+            <div class="modal-body">
+                <div id="create-icon-section" style="display:none;">
+                    <div class="form-row">
+                        <div class="icon-picker-hover" id="create-icon-picker">
+                            <div class="icon-preview" id="create-icon-preview">
+                                <img src="" alt="icon" />
+                            </div>
+                            <div class="icon-dropdown" id="create-icon-dropdown">
+                                <div class="icon-grid" id="create-icon-grid"></div>
+                            </div>
+                        </div>
+                        <div class="form-group form-group-flex">
+                            <label>名称</label>
+                            <input type="text" class="form-input" id="create-item-name" placeholder="" />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>简介</label>
+                        <textarea class="form-textarea" id="create-item-desc" rows="3" placeholder="知识库简介..."></textarea>
+                    </div>
+                </div>
+                <div id="create-doc-section" style="display:none;">
+                    <div class="form-group">
+                        <label>选择知识库</label>
+                        <div class="create-folder-list" id="create-folder-list"></div>
+                    </div>
+                </div>
+                <p class="create-hint" id="create-hint"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeCreateModal()">取消</button>
+                <button class="btn btn-primary" id="create-submit-btn" onclick="submitCreateItem()">创建</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

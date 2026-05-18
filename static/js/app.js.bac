@@ -1,0 +1,3915 @@
+const API_BASE = '/api';
+let currentView = 'home';
+
+document.addEventListener('DOMContentLoaded', function() {
+    initNavigation();
+    initCharts();
+    updateTime();
+    setInterval(updateTime, 1000);
+    initDragAndDrop();
+    initResizeCards();
+    renderFavoritesCard();
+    initSettings();
+    initCitySelector();
+    initSettingsPage();
+    loadSavedTheme();
+    loadSavedLayout();
+    loadQWeather();
+    loadAvatar();
+});
+
+function initSettings() {
+    // 设置功能已移到设置页面视图
+}
+
+function updateTime() {
+    const now = new Date();
+    
+    const clockEl = document.getElementById('current-time');
+    if (clockEl) {
+        clockEl.textContent = String(now.getHours()).padStart(2, '0') + ':' +
+            String(now.getMinutes()).padStart(2, '0');
+    }
+    
+    const dateEl = document.getElementById('current-date');
+    if (dateEl) {
+        dateEl.textContent = (now.getMonth() + 1) + '月' + now.getDate() + '日';
+    }
+    
+    const weekdayEl = document.getElementById('current-weekday');
+    if (weekdayEl) {
+        const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+        weekdayEl.textContent = weekdays[now.getDay()];
+    }
+    
+    const hour = now.getHours();
+    let greeting = '早上好';
+    if (hour >= 12 && hour < 18) {
+        greeting = '下午好';
+    } else if (hour >= 18) {
+        greeting = '晚上好';
+    }
+    
+    const greetingsEl = document.getElementById('greeting');
+    if (greetingsEl) {
+        greetingsEl.textContent = greeting;
+    }
+    
+    updateWeatherIconBasedOnTime(hour);
+}
+
+function updateWeatherIconBasedOnTime(hour) {}
+
+function loadQWeather() {
+    fetch('/api/weather/daily')
+        .then(function(r) { return r.json(); })
+        .then(function(result) {
+            if (result.code === 200 && result.data) {
+                renderQWeather(result.data);
+            } else {
+                clearWeatherUI();
+            }
+        })
+        .catch(function() {
+            clearWeatherUI();
+        });
+}
+
+function renderQWeather(data) {
+    var cityEl = document.getElementById('current-city');
+    var conditionEl = document.getElementById('weather-condition');
+    if (cityEl) cityEl.textContent = data.city || '';
+    if (conditionEl && data.forecast && data.forecast.length > 0) {
+        conditionEl.textContent = data.forecast[0].text_day || '';
+    }
+
+    var cards = document.querySelectorAll('.forecast-card');
+    var forecast = data.forecast || [];
+    cards.forEach(function(card, index) {
+        if (index >= forecast.length) return;
+        var day = forecast[index];
+
+        var iconEl = card.querySelector('.forecast-icon');
+        if (iconEl) {
+            iconEl.src = day.icon_path || '/static/icons/weather/weather_晴.svg';
+            iconEl.style.display = 'block';
+        }
+
+        var highEl = card.querySelector('.temp-high');
+        var lowEl = card.querySelector('.temp-low');
+        var descEl = card.querySelector('.forecast-desc');
+        var dayLabelEl = card.querySelector('.forecast-day');
+
+        if (highEl) highEl.textContent = day.temp_max || '--';
+        if (lowEl) lowEl.textContent = day.temp_min || '--';
+        if (descEl) descEl.textContent = day.text_day || '';
+        if (dayLabelEl) dayLabelEl.textContent = day.day_label || '';
+    });
+}
+
+function clearWeatherUI() {
+    var forecastContainer = document.getElementById('weather-forecast');
+    if (!forecastContainer) return;
+
+    var cards = forecastContainer.querySelectorAll('.forecast-card');
+    cards.forEach(function(card) {
+        var iconEl = card.querySelector('.forecast-icon');
+        var highEl = card.querySelector('.temp-high');
+        var lowEl = card.querySelector('.temp-low');
+        var descEl = card.querySelector('.forecast-desc');
+        if (iconEl) {
+            iconEl.src = '';
+            iconEl.style.display = 'none';
+        }
+        if (highEl) highEl.textContent = '--';
+        if (lowEl) lowEl.textContent = '--';
+        if (descEl) descEl.textContent = '';
+    });
+
+    var tempValue = document.querySelector('#main-temp-value');
+    var conditionEl = document.querySelector('.forecast-city-bar .weather-condition');
+    if (tempValue) tempValue.textContent = '--';
+    if (conditionEl) conditionEl.textContent = '';
+}
+
+function initCitySelector() {
+    var refreshBtn = document.getElementById('weather-refresh');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+            var svg = refreshBtn.querySelector('svg');
+            if (svg) {
+                svg.style.animation = 'emoji-spin 0.6s linear';
+                setTimeout(function() { svg.style.animation = ''; }, 600);
+            }
+            loadQWeather();
+        });
+    }
+}
+
+// 头像选择功能
+const avatarOptions = [
+    'fa-user-circle', 'fa-user', 'fa-user-alt', 'fa-user-check',
+    'fa-smile', 'fa-smile-beam', 'fa-grin', 'fa-grin-beam',
+    'fa-heart', 'fa-star', 'fa-sun', 'fa-moon',
+    'fa-cloud', 'fa-brain', 'fa-cat', 'fa-dog',
+    'fa-paw', 'fa-coffee', 'fa-music', 'fa-book',
+    'fa-laptop', 'fa-phone', 'fa-camera', 'fa-gift',
+    'fa-flower2', 'fa-leaf', 'fa-tree', 'fa-mountain',
+    'fa-anchor', 'fa-ship', 'fa-plane', 'fa-car'
+];
+
+function loadAvatar() {
+    const savedAvatar = localStorage.getItem('blossom-avatar');
+    const avatarIcon = document.getElementById('avatar-icon');
+    if (avatarIcon) {
+        avatarIcon.className = `fas ${savedAvatar || 'fa-user-circle'} avatar-icon`;
+    }
+    
+    const sidebarAvatar = document.getElementById('sidebar-avatar');
+    if (sidebarAvatar) {
+        sidebarAvatar.src = '/static/emoji/' + (savedAvatar || 'smiling_face_3d.png');
+    }
+}
+
+function loadUsername() {
+    const savedUsername = localStorage.getItem('blossom-username');
+    const usernameEl = document.getElementById('user-name');
+    if (usernameEl) {
+        usernameEl.textContent = savedUsername || '用户';
+    }
+}
+
+function changeAvatar() {
+    const modal = document.getElementById('modal-avatar');
+    if (!modal) {
+        createAvatarModal();
+    } else {
+        modal.classList.add('show');
+    }
+}
+
+function createAvatarModal() {
+    const modal = document.createElement('div');
+    modal.id = 'modal-avatar';
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="modal-content avatar-modal">
+            <div class="modal-header">
+                <h3>选择头像图标</h3>
+                <button class="btn-close" onclick="closeAvatarModal()" title="关闭">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </div>
+            <div class="modal-body avatar-grid">
+                ${avatarOptions.map(icon => `
+                    <div class="avatar-option" onclick="selectAvatar('${icon}')">
+                        <i class="fas ${icon}"></i>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="closeAvatarModal()">确定</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.classList.add('show');
+}
+
+function selectAvatar(iconName) {
+    const avatarIcon = document.getElementById('avatar-icon');
+    if (avatarIcon) {
+        avatarIcon.className = `fas ${iconName} avatar-icon`;
+    }
+    localStorage.setItem('blossom-avatar', iconName);
+    closeAvatarModal();
+}
+
+function closeAvatarModal() {
+    const modal = document.getElementById('modal-avatar');
+    if (modal) {
+        modal.classList.remove('show');
+    }
+}
+
+function initCharts() {
+    const wordChartCtx = document.getElementById('wordChart');
+    if (wordChartCtx) {
+        new Chart(wordChartCtx, {
+            type: 'line',
+            data: {
+                labels: Array.from({ length: 36 }, (_, i) => `${(i % 12) + 1}月`),
+                datasets: [{
+                    label: '字数',
+                    data: [1200, 1900, 3000, 5000, 2000, 3000, 4500, 4000, 3500, 5000, 6000, 5500,
+                           2200, 2900, 4000, 6000, 3000, 4000, 5500, 5000, 4500, 6000, 7000, 6500,
+                           3200, 3900, 5000, 7000, 4000, 5000, 6500, 6000, 5500, 7000, 8000, 7500],
+                    borderColor: '#0D9488',
+                    backgroundColor: 'rgba(13, 148, 136, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 0,
+                    pointHoverRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: { display: false },
+                    y: { display: false }
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                }
+            }
+        });
+    }
+
+    const heatmapChartCtx = document.getElementById('heatmapChart');
+    if (heatmapChartCtx) {
+        const hours = ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'];
+        const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+        const data = [
+            [2, 5, 8, 12, 15, 8],
+            [3, 7, 10, 14, 18, 10],
+            [5, 9, 12, 16, 20, 12],
+            [4, 8, 11, 15, 19, 11],
+            [6, 10, 13, 17, 22, 14],
+            [8, 12, 15, 18, 15, 8],
+            [5, 7, 9, 11, 8, 4]
+        ];
+
+        const flatData = [];
+        const labels = [];
+        data.forEach((row, dayIndex) => {
+            row.forEach((value, hourIndex) => {
+                for (let i = 0; i < value; i++) {
+                    flatData.push({ x: hourIndex, y: dayIndex, value: value });
+                }
+            });
+        });
+
+        new Chart(heatmapChartCtx, {
+            type: 'bar',
+            data: {
+                labels: hours,
+                datasets: days.map((day, dayIndex) => ({
+                    label: day,
+                    data: data[dayIndex],
+                    backgroundColor: data[dayIndex].map(v => 
+                        `rgba(13, 148, 136, ${Math.min(v / 25, 1)})`
+                    ),
+                    borderRadius: 2,
+                    barThickness: 18
+                }))
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { size: 10 }, color: '#999' }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { display: false }
+                    }
+                }
+            }
+        });
+    }
+}
+
+function initNavigation() {
+    const menuItems = document.querySelectorAll('.item-menu');
+    menuItems.forEach(item => {
+        item.addEventListener('click', function() {
+            const view = this.dataset.view;
+            switchView(view);
+        });
+    });
+}
+
+function switchView(view) {
+    currentView = view;
+
+    document.querySelectorAll('.item-menu').forEach(item => {
+        item.classList.remove('is-active');
+    });
+    const activeMenu = document.querySelector(`[data-view="${view}"]`);
+    if (activeMenu) {
+        activeMenu.classList.add('is-active');
+    }
+
+    document.querySelectorAll('.view').forEach(v => {
+        v.classList.remove('active');
+    });
+    const activeView = document.getElementById(`view-${view}`);
+    if (activeView) {
+        activeView.classList.add('active');
+    }
+    
+    // 如果切换到图片视图，加载图片列表
+    if (view === 'picture') {
+        loadImages();
+    }
+}
+
+// 加载图片列表
+function loadImages() {
+    const imageGrid = document.getElementById('image-grid');
+    
+    if (!imageGrid) {
+        return;
+    }
+    
+    imageGrid.innerHTML = `
+        <div style="display: flex; justify-content: center; align-items: center; padding: 40px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#909399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-spin"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+        </div>
+    `;
+    
+    fetch('/api/picture/images')
+        .then(response => response.json())
+        .then(result => {
+            if (!result || result.code !== 200 || !result.data || result.data.length === 0) {
+                imageGrid.innerHTML = `
+                    <div class="empty-state">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.4"/><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5-4 4-3-3"/></svg>
+                        <p>${result?.message || '该路径下没有图片'}</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // 按文件夹分组
+            const groupedImages = {};
+            result.data.forEach(img => {
+                const folder = img.folder || '根目录';
+                if (!groupedImages[folder]) {
+                    groupedImages[folder] = [];
+                }
+                groupedImages[folder].push(img);
+            });
+            
+            // 生成卡片HTML
+            let html = '';
+            Object.keys(groupedImages).forEach(folder => {
+                html += `
+                    <div class="image-folder">
+                        <div class="folder-header">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 20h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z"/><path d="M14 2v4"/><path d="M2 14h4"/></svg>
+                            <span>${folder}</span>
+                            <span class="image-count">${groupedImages[folder].length} 张图片</span>
+                        </div>
+                        <div class="image-grid">
+                `;
+                
+                groupedImages[folder].forEach(img => {
+                    const imgUrl = `/api/picture/image?img=${encodeURIComponent(img.path)}`;
+                    const size = formatFileSize(img.size);
+                    const date = formatDate(img.modified);
+                    
+                    html += `
+                        <div class="image-card" data-path="${img.path}">
+                            <div class="image-preview">
+                                <img src="${imgUrl}" alt="${img.name}" loading="lazy">
+                            </div>
+                            <div class="image-info">
+                                <span class="image-name">${img.name}</span>
+                                <span class="image-meta">${size} · ${date}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                        </div>
+                    </div>
+                `;
+            });
+            
+            imageGrid.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Failed to load images:', error);
+            imageGrid.innerHTML = `
+                <div class="empty-state">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.4"/><path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="10"/></svg>
+                    <p>加载图片失败，请检查路径配置</p>
+                </div>
+            `;
+        });
+}
+
+// 格式化文件大小
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+// 格式化日期
+function formatDate(timestamp) {
+    const date = new Date(timestamp * 1000);
+    return date.toLocaleDateString('zh-CN');
+}
+
+function expandMiddle() {
+    const middle = document.getElementById('middle-panel');
+    if (middle) {
+        middle.style.display = 'block';
+    }
+}
+
+function foldWeb() {
+    const webContainer = document.getElementById('web-container');
+    if (webContainer) {
+        webContainer.style.display = 'none';
+    }
+}
+
+function foldChart() {
+    const chartContainer = document.getElementById('side-chart-container');
+    if (chartContainer) {
+        chartContainer.style.display = 'none';
+    }
+}
+
+function loadWordLine() {
+    console.log('Reload word chart');
+}
+
+function loadHeatmap() {
+    console.log('Reload heatmap');
+}
+
+function showWordsInfo() {
+    console.log('Show words info');
+}
+
+function toggleStarView() {
+    console.log('Toggle star view');
+}
+
+function toggleSubjectView() {
+    console.log('Toggle subject view');
+}
+
+function showNoteForm(note = null) {
+    const modal = document.getElementById('modal-note');
+    if (!modal) return;
+
+    const modalTitle = document.getElementById('modal-title');
+    const noteId = document.getElementById('note-id');
+    const noteTitle = document.getElementById('note-title');
+    const noteContent = document.getElementById('note-content');
+
+    if (note) {
+        if (modalTitle) modalTitle.textContent = '编辑笔记';
+        if (noteId) noteId.value = note.id;
+        if (noteTitle) noteTitle.value = note.title || '';
+        if (noteContent) noteContent.value = note.content || '';
+    } else {
+        if (modalTitle) modalTitle.textContent = '新建笔记';
+        if (noteId) noteId.value = '';
+        if (noteTitle) noteId.value = '';
+        if (noteContent) noteContent.value = '';
+    }
+
+    modal.classList.add('show');
+}
+
+function closeNoteForm() {
+    const modal = document.getElementById('modal-note');
+    if (modal) {
+        modal.classList.remove('show');
+    }
+}
+
+async function saveNote() {
+    const id = document.getElementById('note-id')?.value;
+    const title = document.getElementById('note-title')?.value?.trim();
+    const content = document.getElementById('note-content')?.value?.trim();
+
+    if (!title) {
+        alert('请输入标题');
+        return;
+    }
+
+    try {
+        const data = { title, content };
+        let response;
+
+        if (id) {
+            response = await fetch(`${API_BASE}/articles/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+        } else {
+            response = await fetch(`${API_BASE}/articles`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+        }
+
+        const result = await response.json();
+        if (result.success) {
+            closeNoteForm();
+        } else {
+            alert(result.message || '操作失败');
+        }
+    } catch (error) {
+        console.error('保存笔记失败:', error);
+        alert('保存失败');
+    }
+}
+
+function initDragAndDrop() {
+    const dashboard = document.getElementById('dashboard');
+    if (!dashboard) return;
+
+    let draggedCard = null;
+
+    const cards = document.querySelectorAll('.dashboard-card');
+    cards.forEach(card => {
+        card.addEventListener('dragstart', function(e) {
+            draggedCard = card;
+            card.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', card.dataset.id);
+            e.dataTransfer.setData('text/html', card.outerHTML);
+        });
+
+        card.addEventListener('dragend', function(e) {
+            card.classList.remove('dragging');
+            draggedCard = null;
+            document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
+        });
+
+        const innerElements = card.querySelectorAll('*');
+        innerElements.forEach(el => {
+            el.setAttribute('draggable', 'false');
+            el.addEventListener('dragstart', function(e) {
+                e.stopPropagation();
+            });
+        });
+    });
+
+    dashboard.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        
+        document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
+        
+        const targetCard = e.target.closest('.dashboard-card');
+        
+        if (targetCard && targetCard !== draggedCard) {
+            const targetRect = targetCard.getBoundingClientRect();
+            const isTopHalf = (e.clientY - targetRect.top) < (targetRect.height / 2);
+            
+            const indicator = document.createElement('div');
+            indicator.className = 'drop-indicator';
+            
+            if (isTopHalf) {
+                targetCard.before(indicator);
+            } else {
+                targetCard.after(indicator);
+            }
+        }
+    });
+
+    dashboard.addEventListener('drop', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        if (!draggedCard) return;
+        
+        const targetCard = e.target.closest('.dashboard-card');
+        const indicator = document.querySelector('.drop-indicator');
+        
+        if (indicator) {
+            indicator.before(draggedCard);
+            indicator.remove();
+        } else if (targetCard && targetCard !== draggedCard) {
+            const targetRect = targetCard.getBoundingClientRect();
+            const isTopHalf = (e.clientY - targetRect.top) < (targetRect.height / 2);
+            
+            if (isTopHalf) {
+                targetCard.before(draggedCard);
+            } else {
+                targetCard.after(draggedCard);
+            }
+        } else {
+            dashboard.appendChild(draggedCard);
+        }
+        
+        draggedCard.classList.remove('dragging');
+        draggedCard = null;
+        
+        saveLayout();
+    });
+
+    dashboard.addEventListener('dragenter', function(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    });
+}
+
+function initResizeCards() {
+    const cards = document.querySelectorAll('.dashboard-card');
+    cards.forEach(card => {
+        const cardId = card.dataset.id;
+        if (!cardId) return;
+
+        // 设置整个卡片可拖拽
+        card.setAttribute('draggable', 'true');
+
+        initCardMenu(card, cardId);
+        initCardResizeHandles(card);
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.card-menu-container') && !e.target.closest('.card-menu-btn')) {
+            closeCardMenus();
+        }
+    });
+}
+
+function initCardMenu(card, cardId) {
+    // 检查是否已经有菜单按钮，如果有则跳过（避免重复）
+    const existingMenu = card.querySelector('.card-menu-container');
+    if (existingMenu) {
+        return;
+    }
+    
+    const header = card.querySelector('.card-header');
+    if (!header) return;
+
+    const menuHTML = `
+        <div class="card-menu-container">
+            <button class="card-menu-btn" onclick="toggleCardMenu('${cardId}')"><img src="/static/emoji/more.png" class="emoji-icon" /></button>
+            <div class="card-menu-dropdown" id="menu-${cardId}">
+                ${getMenuOptions(cardId)}
+            </div>
+        </div>
+    `;
+    header.insertAdjacentHTML('beforeend', menuHTML);
+}
+
+function getMenuOptions(cardId) {
+    const sizeOptions = ['1x1', '2x1', '1x2', '2x2'];
+    let options = '';
+    
+    if (cardId === 'article-stars') {
+        options += '<button onclick="toggleStarView()">列表视图</button>';
+    } else if (cardId === 'subject-stars') {
+        options += '<button onclick="toggleSubjectView()">列表视图</button>';
+    } else if (cardId === 'word-stat') {
+        options += '<button onclick="loadWordLine()">刷新图表</button>';
+        options += '<button onclick="showWordsInfo()">统计信息</button>';
+    } else if (cardId === 'heatmap') {
+        options += '<button onclick="loadHeatmap()">刷新图表</button>';
+    }
+    
+    sizeOptions.forEach(size => {
+        options += `<button onclick="resizeCard('${cardId}', '${size}')">${size}</button>`;
+    });
+    
+    return options;
+}
+
+function toggleCardMenu(cardId) {
+    // 先关闭所有其他菜单
+    closeCardMenus();
+    // 然后切换当前菜单
+    const menu = document.getElementById(`menu-${cardId}`);
+    if (menu) {
+        menu.classList.toggle('show');
+    }
+}
+
+function closeCardMenus() {
+    document.querySelectorAll('.card-menu-dropdown').forEach(menu => {
+        menu.classList.remove('show');
+    });
+}
+
+function initCardResizeHandles(card) {
+    const resizeHandles = `
+        <div class="card-resize-handle"></div>
+        <div class="card-resize-handle-right"></div>
+        <div class="card-resize-handle-bottom"></div>
+    `;
+    card.insertAdjacentHTML('beforeend', resizeHandles);
+
+    initMouseResize(card);
+}
+
+function initMouseResize(card) {
+    const cardId = card.dataset.id;
+    const handle = card.querySelector('.card-resize-handle');
+    const handleRight = card.querySelector('.card-resize-handle-right');
+    const handleBottom = card.querySelector('.card-resize-handle-bottom');
+
+    const startResize = (e, direction) => {
+        e.preventDefault();
+        const dashboard = document.getElementById('dashboard');
+        const gridGap = parseInt(getComputedStyle(dashboard).gap);
+        const cardWidth = card.offsetWidth;
+        const cardHeight = card.offsetHeight;
+        const startX = e.clientX;
+        const startY = e.clientY;
+
+        // 定义允许的固定尺寸 (列数 x 行数)
+        const allowedSizes = ['1x1', '2x1', '1x2', '2x2', '3x1', '1x3'];
+        
+        // 获取网格单元格的基础尺寸
+        const gridTemplateColumns = getComputedStyle(dashboard).gridTemplateColumns;
+        const cellWidth = parseFloat(gridTemplateColumns.split('px')[0]) || 200;
+        const cellHeight = parseFloat(getComputedStyle(dashboard).gridTemplateRows.split('px')[0]) || 200;
+
+        const onMouseMove = (e) => {
+            let newWidth = cardWidth + (e.clientX - startX);
+            let newHeight = cardHeight + (e.clientY - startY);
+
+            if (direction === 'right' || direction === 'corner') {
+                card.style.width = Math.max(cellWidth, newWidth) + 'px';
+            }
+            if (direction === 'bottom' || direction === 'corner') {
+                card.style.height = Math.max(cellHeight, newHeight) + 'px';
+            }
+        };
+
+        const onMouseUp = () => {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            
+            // 计算当前卡片尺寸对应的网格单元数
+            const currentWidth = card.offsetWidth;
+            const currentHeight = card.offsetHeight;
+            
+            const cols = Math.round(currentWidth / cellWidth);
+            const rows = Math.round(currentHeight / cellHeight);
+            
+            // 确保在允许范围内
+            const finalCols = Math.max(1, Math.min(3, cols));
+            const finalRows = Math.max(1, Math.min(3, rows));
+            
+            // 构建尺寸字符串
+            const newSize = `${finalCols}x${finalRows}`;
+            
+            // 如果是允许的尺寸，则应用
+            if (allowedSizes.includes(newSize)) {
+                resizeCard(cardId, newSize);
+            } else {
+                // 否则选择最接近的允许尺寸
+                const closestSize = allowedSizes.reduce((prev, curr) => {
+                    const [prevCols, prevRows] = prev.split('x').map(Number);
+                    const [currCols, currRows] = curr.split('x').map(Number);
+                    const prevDiff = Math.abs(prevCols - finalCols) + Math.abs(prevRows - finalRows);
+                    const currDiff = Math.abs(currCols - finalCols) + Math.abs(currRows - finalRows);
+                    return currDiff < prevDiff ? curr : prev;
+                });
+                resizeCard(cardId, closestSize);
+            }
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    };
+
+    if (handle) {
+        handle.addEventListener('mousedown', (e) => startResize(e, 'corner'));
+    }
+    if (handleRight) {
+        handleRight.addEventListener('mousedown', (e) => startResize(e, 'right'));
+    }
+    if (handleBottom) {
+        handleBottom.addEventListener('mousedown', (e) => startResize(e, 'bottom'));
+    }
+}
+
+function resizeCard(cardId, newSize) {
+    const card = document.querySelector(`[data-id="${cardId}"]`);
+    if (!card) return;
+
+    card.dataset.size = newSize;
+    const [cols, rows] = newSize.split('x').map(Number);
+    card.style.gridColumn = `span ${cols}`;
+    card.style.gridRow = `span ${rows}`;
+    card.style.width = '';
+    card.style.height = '';
+
+    // 自动保存布局
+    saveLayout();
+
+    const menu = document.getElementById(`menu-${cardId}`);
+    if (menu) {
+        menu.classList.remove('show');
+    }
+}
+
+
+
+function selectCityFromSettings(city) {
+    const cityInput = document.getElementById('city-input');
+    if (cityInput) {
+        cityInput.value = city;
+    }
+    
+    // 更新设置页面中的城市显示
+    const currentCityValue = document.getElementById('current-city-value');
+    if (currentCityValue) {
+        currentCityValue.textContent = city;
+    }
+    
+    // 更新天气区域显示
+    const cityEl = document.getElementById('current-city');
+    if (cityEl) {
+        cityEl.textContent = city;
+    }
+    localStorage.setItem('blossom-city', city);
+    loadQWeather();
+    
+    // 关闭城市选项
+    const cityOptions = document.getElementById('city-options');
+    if (cityOptions) {
+        cityOptions.classList.remove('show');
+    }
+}
+
+// 初始化设置页面
+function initSettingsPage() {
+    // 设置页面左侧分类切换
+    const settingSections = document.querySelectorAll('.settings-menu-item');
+    settingSections.forEach(section => {
+        section.addEventListener('click', () => {
+            // 移除所有active状态
+            settingSections.forEach(s => s.classList.remove('active'));
+            // 添加当前active状态
+            section.classList.add('active');
+            
+            // 切换内容区域
+            const settingName = section.dataset.setting;
+            const contentSections = document.querySelectorAll('.setting-content-section');
+            contentSections.forEach(cs => {
+                cs.style.display = 'none';
+            });
+            document.getElementById(`setting-${settingName}`).style.display = 'block';
+        });
+    });
+    
+    // 初始化主题选择
+    const themeCards = document.querySelectorAll('.theme-card');
+    themeCards.forEach(card => {
+        card.addEventListener('click', () => {
+            const theme = card.dataset.theme;
+            setTheme(theme);
+        });
+    });
+    
+    // 初始化城市显示
+    const savedCity = localStorage.getItem('blossom-city') || '北京';
+    const cityDisplay = document.getElementById('city-display');
+    if (cityDisplay) {
+        cityDisplay.textContent = savedCity;
+    }
+    
+    // 城市选择
+    const cityButtons = document.querySelectorAll('.city-btn');
+    cityButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const city = btn.dataset.city;
+            localStorage.setItem('blossom-city', city);
+            if (cityDisplay) {
+                cityDisplay.textContent = city;
+            }
+            // 更新天气
+            loadWeather(city);
+            // 更新按钮状态
+            cityButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+        // 设置当前城市按钮为active
+        if (btn.dataset.city === savedCity) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // 初始化路径设置
+    initPathSettings();
+}
+
+function getArticlePath() {
+    return '';
+}
+
+function getImagePath() {
+    return '';
+}
+
+function initPathSettings() {
+}
+
+function savePaths() {
+    fetch('/api/article/init-paths', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result && result.code === 200) {
+            alert('资源文件夹已初始化完成');
+        } else {
+            alert('初始化文件夹时出现问题');
+        }
+    })
+    .catch(error => {
+        console.error('Failed to init paths:', error);
+        alert('初始化失败');
+    });
+}
+
+function resetPaths() {
+    localStorage.removeItem('blossom-resource-path');
+    localStorage.removeItem('blossom-article-path');
+    localStorage.removeItem('blossom-image-path');
+}
+
+// 主题切换
+const THEME_CLASSES = ['theme-pink', 'theme-dark-teal', 'theme-dark-pink'];
+
+function setTheme(theme) {
+    const root = document.documentElement;
+    
+    THEME_CLASSES.forEach(cls => root.classList.remove(cls));
+    
+    if (theme === 'pink') {
+        root.classList.add('theme-pink');
+    } else if (theme === 'dark-teal') {
+        root.classList.add('theme-dark-teal');
+    } else if (theme === 'dark-pink') {
+        root.classList.add('theme-dark-pink');
+    }
+    
+    localStorage.setItem('blossom-theme', theme);
+    updateThemeOptions();
+}
+
+function updateThemeOptions() {
+    const currentTheme = localStorage.getItem('blossom-theme') || 'green';
+    const options = document.querySelectorAll('.theme-card');
+    
+    options.forEach(opt => opt.classList.remove('active'));
+    
+    const target = document.querySelector(`.theme-card[data-theme="${currentTheme}"]`);
+    if (target) {
+        target.classList.add('active');
+    } else {
+        document.querySelector('.theme-card[data-theme="green"]')?.classList.add('active');
+    }
+}
+
+function loadSavedTheme() {
+    const savedTheme = localStorage.getItem('blossom-theme');
+    if (savedTheme) {
+        setTheme(savedTheme);
+    } else {
+        updateThemeOptions();
+    }
+}
+
+// 布局保存
+function saveLayout() {
+    const cards = document.querySelectorAll('.dashboard-card');
+    const layout = [];
+    
+    cards.forEach((card, index) => {
+        const id = card.dataset.id;
+        const size = card.dataset.size;
+        const width = card.style.width || '';
+        const height = card.style.height || '';
+        const gridColumn = card.style.gridColumn || '';
+        const gridRow = card.style.gridRow || '';
+        
+        layout.push({
+            id,
+            index,
+            size,
+            width,
+            height,
+            gridColumn,
+            gridRow
+        });
+    });
+    
+    localStorage.setItem('blossom-layout', JSON.stringify(layout));
+}
+
+function loadSavedLayout() {
+    const savedLayout = localStorage.getItem('blossom-layout');
+    if (!savedLayout) return;
+    
+    try {
+        const layout = JSON.parse(savedLayout);
+        layout.forEach(item => {
+            const card = document.querySelector(`[data-id="${item.id}"]`);
+            if (card) {
+                if (item.size) {
+                    card.dataset.size = item.size;
+                    const [cols, rows] = item.size.split('x').map(Number);
+                    // 验证尺寸是否有效
+                    if (cols >= 1 && cols <= 4 && rows >= 1 && rows <= 4) {
+                        card.style.gridColumn = `span ${cols}`;
+                        card.style.gridRow = `span ${rows}`;
+                    }
+                }
+            }
+        });
+    } catch (e) {
+        console.error('Failed to load layout:', e);
+        // 如果加载失败，清除缓存
+        localStorage.removeItem('blossom-layout');
+    }
+}
+
+function resetLayout() {
+    localStorage.removeItem('blossom-layout');
+    location.reload();
+}
+
+// ========== 文章页面功能 ==========
+
+// 当前选中的文件路径
+let currentFilePath = '';
+let pendingOpenInEdit = false;
+
+// 收藏管理
+function getFavorites() {
+    try {
+        const data = localStorage.getItem('zssnote-favorites');
+        console.log('[Favorites] getFavorites:', data);
+        return JSON.parse(data || '[]');
+    } catch (e) { 
+        console.error('[Favorites] getFavorites error:', e);
+        return []; 
+    }
+}
+
+function saveFavorites(list) {
+    localStorage.setItem('zssnote-favorites', JSON.stringify(list));
+    console.log('[Favorites] saveFavorites:', JSON.stringify(list));
+}
+
+function isFavorited(filePath) {
+    const result = getFavorites().some(f => f.path === filePath);
+    console.log('[Favorites] isFavorited:', filePath, result);
+    return result;
+}
+
+function toggleFavorite(filePath, title, folderPath) {
+    console.log('[Favorites] toggleFavorite called:', { filePath, title, folderPath });
+    let list = getFavorites();
+    const idx = list.findIndex(f => f.path === filePath);
+    if (idx >= 0) {
+        list.splice(idx, 1);
+        console.log('[Favorites] Removed from favorites');
+    } else {
+        list.push({ path: filePath, title: title, folderPath: folderPath || '' });
+        console.log('[Favorites] Added to favorites');
+    }
+    saveFavorites(list);
+    // 更新菜单栏按钮状态
+    updateFavoriteBtn();
+    // 更新首页收藏卡片
+    renderFavoritesCard();
+    return idx < 0; // true = 已收藏, false = 已取消
+}
+
+// 更新收藏按钮状态
+function updateFavoriteBtnState(btn) {
+    if (!btn) return;
+    if (!currentFilePath) {
+        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+        btn.title = '请先选择文档';
+        btn.disabled = true;
+        return;
+    }
+    btn.disabled = false;
+    const favorited = isFavorited(currentFilePath);
+    btn.innerHTML = favorited 
+        ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#FFD700" stroke="#FFD700" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
+        : '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+    btn.title = favorited ? '取消收藏' : '收藏文档';
+}
+
+// 更新菜单栏收藏按钮
+function updateFavoriteBtn() {
+    const btn = document.getElementById('article-fav-btn');
+    if (btn) {
+        updateFavoriteBtnState(btn);
+    }
+}
+
+// 获取当前文档信息
+function getCurrentDocInfo() {
+    const titleEl = document.querySelector('.md-h1-wrapper h1');
+    const title = titleEl ? titleEl.textContent : currentFilePath.split(/[\\/]/).pop().replace(/\.md$/i, '');
+    
+    // 获取文件夹路径
+    let folderPath = '';
+    if (currentFilePath) {
+        const sep = currentFilePath.includes('\\') ? '\\' : '/';
+        folderPath = currentFilePath.substring(0, currentFilePath.lastIndexOf(sep));
+    }
+    
+    return { title, folderPath };
+}
+
+// 渲染首页收藏卡片
+function renderFavoritesCard() {
+    const container = document.querySelector('.article-stars-root');
+    if (!container) return;
+    
+    const favorites = getFavorites();
+    
+    if (favorites.length === 0) {
+        container.innerHTML = `
+            <div style="padding: 20px; text-align: center; color: var(--color-muted); font-size: 13px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 8px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                <p>暂无收藏文档</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = '';
+    
+    favorites.forEach(fav => {
+        const fileName = fav.path.split(/[\\/]/).pop();
+        
+        const card = document.createElement('div');
+        card.className = 'star-card';
+        card.dataset.path = fav.path;
+        card.innerHTML = `
+            <div class="counterfoil">
+                <img src="/static/emoji/Page facing up_3d.png" class="emoji-icon" />
+            </div>
+            <div class="content">
+                <div class="name">${escapeHtml(fav.title)}</div>
+                <div class="infos">
+                    <span>${fileName}</span>
+                </div>
+            </div>
+        `;
+        
+        card.addEventListener('click', function() {
+            openFavorite(fav.path);
+        });
+        
+        container.appendChild(card);
+    });
+}
+
+// 打开收藏的文档
+function openFavorite(filePath) {
+    console.log('[Favorites] openFavorite called:', filePath);
+    
+    // 检查是否在首页（home.html），如果是则跳转到文章页面
+    const isHomePage = !document.getElementById('view-article');
+    if (isHomePage) {
+        console.log('[Favorites] On home page, redirecting to article page');
+        // 跳转到文章页面，并传递文件路径参数
+        window.location.href = `/article?path=${encodeURIComponent(filePath)}`;
+        return;
+    }
+    
+    // 在文章页面，直接加载文章
+    if (typeof loadArticle === 'function') {
+        loadArticle(filePath);
+        switchView('article');
+    }
+}
+
+// 刷新文档树
+function refreshDocTree() {
+    loadDocTree();
+    // 关闭侧边栏下拉菜单
+    const dropdown = document.getElementById('sidebar-dropdown');
+    if (dropdown) dropdown.classList.remove('show');
+}
+
+// 当前创建类型: 'folder' | 'document'
+let createMode = '';
+let createTargetFolder = '';
+
+// 显示新建知识库弹窗
+function showNewKnowledgeBaseModal() {
+    const dropdown = document.getElementById('sidebar-dropdown');
+    if (dropdown) dropdown.classList.remove('show');
+
+    createMode = 'folder';
+    createTargetFolder = '';
+
+    document.getElementById('create-modal-title').textContent = '新建知识库';
+    document.getElementById('create-icon-section').style.display = '';
+    document.getElementById('create-doc-section').style.display = 'none';
+    document.getElementById('create-item-name').value = '';
+    document.getElementById('create-item-name').placeholder = '知识库名称';
+    document.getElementById('create-item-desc').value = '';
+    document.getElementById('create-hint').textContent = '';
+
+    selectedCreateIcon = 'Open file folder';
+    updateCreateIconPreview();
+    renderCreateIconGrid();
+
+    document.getElementById('modal-create-item').classList.add('show');
+    document.getElementById('create-item-name').focus();
+}
+
+// 显示新建文档弹窗
+function showNewDocumentModal() {
+    const dropdown = document.getElementById('sidebar-dropdown');
+    if (dropdown) dropdown.classList.remove('show');
+
+    createMode = 'document';
+    createTargetFolder = '';
+
+    document.getElementById('create-modal-title').textContent = '选择知识库';
+    document.getElementById('create-icon-section').style.display = 'none';
+    document.getElementById('create-doc-section').style.display = '';
+    document.getElementById('create-hint').textContent = '';
+
+    const submitBtn = document.getElementById('create-submit-btn');
+    submitBtn.style.display = 'none';
+
+    // 加载文件夹列表
+    loadCreateFolderList();
+
+    document.getElementById('modal-create-item').classList.add('show');
+}
+
+// 加载文件夹列表到创建弹窗
+function loadCreateFolderList() {
+    const list = document.getElementById('create-folder-list');
+    if (!list) return;
+
+    list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--color-muted);"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg></div>';
+
+    fetch('/api/article/tree')
+        .then(res => res.json())
+        .then(result => {
+            if (!result || result.code !== 200 || !result.data) {
+                list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--color-muted);">暂无知识库</div>';
+                return;
+            }
+
+            const folders = result.data.filter(n => n.type === 'folder');
+            if (folders.length === 0) {
+                list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--color-muted);">暂无知识库</div>';
+                return;
+            }
+
+            let html = '';
+            folders.forEach(folder => {
+                const folderPath = folder.path;
+                // 加载文件夹 meta
+                const metaUrl = `/api/article/folder-meta?path=${encodeURIComponent(folderPath)}`;
+                html += `
+                    <div class="create-folder-item" onclick="createDocInFolder('${folderPath.replace(/\\/g, '\\\\')}')" data-path="${folderPath.replace(/\\/g, '\\\\')}">
+                        <img src="/static/emoji/File folder_3d.png" class="emoji-icon" />
+                        <span class="create-folder-name">${escapeHtml(folder.name)}</span>
+                    </div>
+                `;
+            });
+            list.innerHTML = html;
+
+            // 异步加载图标
+            folders.forEach(folder => {
+                const metaUrl = `/api/article/folder-meta?path=${encodeURIComponent(folder.path)}`;
+                fetch(metaUrl)
+                    .then(res => res.json())
+                    .then(metaResult => {
+                        const meta = metaResult.data || {};
+                        const icon = meta.icon || 'open_file_folder';
+                        const item = list.querySelector(`[data-path="${folder.path.replace(/\\/g, '\\\\')}"]`);
+                        if (item && icon && icon !== 'fa-folder') {
+                            const emojiUrl = `/api/article/emoji/${encodeURIComponent(icon)}`;
+                            const iconEl = item.querySelector('i');
+                            if (iconEl) {
+                                const img = document.createElement('img');
+                                img.src = emojiUrl;
+                                iconEl.replaceWith(img);
+                            }
+                        }
+                    })
+                    .catch(() => {});
+            });
+        })
+        .catch(() => {
+            list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--color-muted);">加载失败</div>';
+        });
+}
+
+// 在指定文件夹创建无标题文档并进入编辑
+function createDocInFolder(folderPath) {
+    closeCreateModal();
+
+    fetch('/api/article/document', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folder_path: folderPath })
+    })
+        .then(res => res.json())
+        .then(result => {
+            if (result.code === 200) {
+                loadDocTree();
+                pendingOpenInEdit = true;
+                currentFilePath = result.data.path;
+                loadArticle(result.data.path);
+            } else {
+                alert(result.message || '创建失败');
+            }
+        })
+        .catch(() => alert('创建失败'));
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+let selectedCreateIcon = 'Open file folder';
+
+function updateCreateIconPreview() {
+    const preview = document.getElementById('create-icon-preview');
+    const iconUrl = `/api/article/emoji/${encodeURIComponent(selectedCreateIcon)}`;
+    preview.querySelector('img').src = iconUrl;
+}
+
+function renderCreateIconGrid() {
+    const grid = document.getElementById('create-icon-grid');
+    let html = '';
+    folderIcons.forEach(icon => {
+        const iconUrl = `/api/article/emoji/${encodeURIComponent(icon)}`;
+        html += `
+            <div class="icon-option${icon === selectedCreateIcon ? ' selected' : ''}" onclick="selectCreateIcon('${icon.replace(/'/g, "\\'")}')">
+                <img src="${iconUrl}" alt="${icon}" />
+            </div>
+        `;
+    });
+    grid.innerHTML = html;
+}
+
+function selectCreateIcon(icon) {
+    selectedCreateIcon = icon;
+    updateCreateIconPreview();
+    renderCreateIconGrid();
+}
+
+// 关闭新建弹窗
+function closeCreateModal() {
+    document.getElementById('modal-create-item').classList.remove('show');
+    // 恢复提交按钮
+    const submitBtn = document.getElementById('create-submit-btn');
+    if (submitBtn) submitBtn.style.display = '';
+    createMode = '';
+}
+
+// 提交创建（仅知识库模式）
+function submitCreateItem() {
+    if (createMode !== 'folder') return;
+
+    const name = (document.getElementById('create-item-name')?.value || '').trim();
+
+    if (!name) {
+        document.getElementById('create-hint').textContent = '请输入名称';
+        return;
+    }
+
+    const submitBtn = document.getElementById('create-submit-btn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-spin" style="margin-right:4px;vertical-align:middle;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> 创建中';
+
+    const description = (document.getElementById('create-item-desc')?.value || '').trim();
+    fetch('/api/article/folder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parent_path: createTargetFolder, name: name, icon: selectedCreateIcon, description: description })
+    })
+        .then(res => res.json())
+        .then(result => {
+            if (result.code === 200) {
+                closeCreateModal();
+                loadDocTree();
+            } else {
+                document.getElementById('create-hint').textContent = result.message || '创建失败';
+                resetCreateBtn();
+            }
+        })
+        .catch(() => {
+            document.getElementById('create-hint').textContent = '网络错误';
+            resetCreateBtn();
+        });
+}
+
+function resetCreateBtn() {
+    const submitBtn = document.getElementById('create-submit-btn');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '创建';
+    }
+}
+
+// Enter 键提交创建弹窗
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Enter' && createMode) {
+        const modal = document.getElementById('modal-create-item');
+        if (modal && modal.classList.contains('show')) {
+            // 忽略 icon-dropdown 内的 Enter
+            if (event.target.closest('.icon-dropdown') || event.target.closest('.icon-picker-hover')) return;
+            event.preventDefault();
+            submitCreateItem();
+        }
+    }
+});
+
+// 切换侧边栏三点菜单
+function toggleSidebarMenu(event) {
+    event.stopPropagation();
+    const dropdown = document.getElementById('sidebar-dropdown');
+    if (dropdown) dropdown.classList.toggle('show');
+}
+
+// 点击其他地方关闭侧边栏下拉
+document.addEventListener('click', function(event) {
+    const wrapper = document.querySelector('.sidebar-menu-wrapper');
+    if (wrapper && !wrapper.contains(event.target)) {
+        const dropdown = document.getElementById('sidebar-dropdown');
+        if (dropdown) dropdown.classList.remove('show');
+    }
+    // 关闭菜单栏三点下拉
+    if (!event.target.closest('.menubar-dropdown') && !event.target.closest('.article-menubar-btn')) {
+        document.querySelectorAll('.menubar-dropdown.show').forEach(d => d.classList.remove('show'));
+    }
+});
+
+// 模糊搜索过滤目录树
+function filterDocTree() {
+    const input = document.getElementById('tree-search');
+    const keyword = (input?.value || '').trim().toLowerCase();
+    const treeList = document.getElementById('tree-list');
+    if (!treeList) return;
+
+    const allItems = treeList.querySelectorAll('.tree-item');
+
+    if (!keyword) {
+        // 清除所有隐藏
+        allItems.forEach(item => item.classList.remove('hidden-by-search'));
+        // 收起因搜索展开的父级
+        return;
+    }
+
+    allItems.forEach(item => {
+        const name = item.querySelector('.tree-name')?.textContent?.toLowerCase() || '';
+        const match = name.includes(keyword);
+        item.classList.toggle('hidden-by-search', !match);
+
+        // 如果匹配，展开所有父级
+        if (match) {
+            let parent = item.closest('.tree-children');
+            while (parent) {
+                parent.classList.add('expanded');
+                const parentLi = parent.closest('li');
+                if (parentLi) {
+                    const expandIcon = parentLi.querySelector(':scope > .tree-item .expand-icon');
+                    if (expandIcon && !expandIcon.classList.contains('empty')) {
+                        expandIcon.classList.add('expanded');
+                    }
+                }
+                parent = parentLi ? parentLi.closest('.tree-children') : null;
+            }
+        }
+    });
+
+    // 隐藏空的文件夹
+    treeList.querySelectorAll('.tree-item.folder').forEach(folderItem => {
+        const li = folderItem.closest('li');
+        const children = li?.querySelector('.tree-children');
+        if (children) {
+            const visibleChildren = children.querySelectorAll('.tree-item:not(.hidden-by-search)');
+            if (visibleChildren.length === 0) {
+                folderItem.classList.add('hidden-by-search');
+            }
+        }
+    });
+}
+
+// 加载文档树
+function loadDocTree() {
+    const treeLoading = document.getElementById('tree-loading');
+    const treeEmpty = document.getElementById('tree-empty');
+    const treeList = document.getElementById('tree-list');
+    
+    treeLoading.style.display = 'flex';
+    treeEmpty.style.display = 'none';
+    treeList.style.display = 'none';
+    
+    fetch('/api/article/tree')
+        .then(response => response.json())
+        .then(result => {
+            treeLoading.style.display = 'none';
+            
+            if (!result || result.code !== 200 || !result.data || result.data.length === 0) {
+                const message = result?.message || '该路径下没有文章';
+                treeEmpty.innerHTML = `
+                    <img src="/static/emoji/Open file folder_3d.png" class="emoji-icon" />
+                    <span>${message}</span>
+                `;
+                treeEmpty.style.display = 'flex';
+                return;
+            }
+            
+            treeList.innerHTML = buildTreeHTML(result.data);
+            treeList.style.display = 'block';
+            filterDocTree();
+        })
+        .catch(error => {
+            console.error('Failed to load doc tree:', error);
+            treeLoading.style.display = 'none';
+            treeEmpty.innerHTML = `
+                <img src="/static/emoji/Red exclamation mark_3d.png" class="emoji-icon" />
+                <span>加载失败，请检查路径配置</span>
+            `;
+            treeEmpty.style.display = 'flex';
+        });
+}
+
+// 构建树HTML
+function buildTreeHTML(nodes) {
+    let html = '';
+    nodes.forEach(node => {
+        html += buildTreeNode(node);
+    });
+    return html;
+}
+
+// 构建树节点HTML
+function buildTreeNode(node) {
+    const hasChildren = node.children && node.children.length > 0;
+    const isFolder = node.type === 'folder';
+    const expandClass = hasChildren ? 'expanded' : 'empty';
+    const escapedPath = node.path.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    
+    let iconHtml;
+    if (isFolder && node.icon) {
+        iconHtml = `<img class="tree-folder-emoji" src="/api/article/emoji/${encodeURIComponent(node.icon)}" alt="">`;
+    } else if (isFolder) {
+        iconHtml = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tree-icon"><path d="M4 20h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z"/><path d="M14 2v4"/><path d="M2 14h4"/></svg>`;
+    } else {
+        iconHtml = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tree-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>`;
+    }
+    
+    let html = `
+        <li>
+            <div class="tree-item ${isFolder ? 'folder' : 'file'}" data-path="${node.path}" data-type="${node.type}">
+                <span class="expand-icon ${expandClass}" onclick="toggleTreeExpand(event, this)">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </span>
+                ${iconHtml}
+                <span class="tree-name">${node.name}</span>
+                ${!isFolder ? `
+                <span class="tree-item-menu">
+                    <button class="tree-item-menu-btn" onclick="toggleTreeItemMenu(event, this)" title="更多">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                    </button>
+                    <div class="tree-item-dropdown">
+                        <button onclick="deleteDocument('${escapedPath}')">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg> 删除
+                        </button>
+                    </div>
+                </span>` : ''}
+            </div>
+    `;
+    
+    if (hasChildren) {
+        html += `
+            <ul class="tree-children expanded">
+                ${buildTreeHTML(node.children)}
+            </ul>
+        `;
+    }
+    
+    html += '</li>';
+    return html;
+}
+
+// 切换树节点展开/折叠
+function toggleTreeExpand(event, element) {
+    event.stopPropagation();
+    const parentLi = element.closest('li');
+    const children = parentLi.querySelector('.tree-children');
+    
+    if (children) {
+        children.classList.toggle('expanded');
+        element.classList.toggle('expanded');
+    }
+}
+
+// 切换树节点内三点菜单
+function toggleTreeItemMenu(event, btn) {
+    event.stopPropagation();
+    const dropdown = btn.nextElementSibling;
+    if (dropdown) {
+        // 关闭其他打开的
+        document.querySelectorAll('.tree-item-dropdown.show').forEach(d => {
+            if (d !== dropdown) d.classList.remove('show');
+        });
+        dropdown.classList.toggle('show');
+    }
+}
+
+// 点击其他地方关闭树节点下拉
+document.addEventListener('click', function(event) {
+    if (!event.target.closest('.tree-item-menu-btn')) {
+        document.querySelectorAll('.tree-item-dropdown.show').forEach(d => d.classList.remove('show'));
+    }
+});
+
+// 删除文档
+function deleteDocument(filePath) {
+    if (!confirm('确定要删除这篇文档吗？此操作不可撤销。')) return;
+    
+    fetch(`/api/article/document?path=${encodeURIComponent(filePath)}`, {
+        method: 'DELETE'
+    })
+        .then(res => res.json())
+        .then(result => {
+            if (result.code === 200) {
+                // 如果正在查看被删除的文档，清空内容
+                if (currentFilePath === filePath) {
+                    document.getElementById('article-content').innerHTML = `
+                        <div class="empty-content">
+                            <img src="/static/emoji/Page facing up_3d.png" class="emoji-icon" />
+                            <p>请在左侧选择一篇文章</p>
+                        </div>
+                    `;
+                    removeArticleToolbar();
+                    currentFilePath = '';
+                }
+                loadDocTree();
+            } else {
+                alert(result.message || '删除失败');
+            }
+        })
+        .catch(error => {
+            console.error('删除失败:', error);
+            alert('删除失败');
+        });
+}
+
+// 点击树节点
+document.addEventListener('click', function(event) {
+    const treeItem = event.target.closest('.tree-item');
+    if (!treeItem) return;
+    
+    // 不响应三点菜单按钮点击
+    if (event.target.closest('.tree-item-menu-btn') || event.target.closest('.tree-item-dropdown')) return;
+    
+    const path = treeItem.dataset.path;
+    const type = treeItem.dataset.type;
+    
+    // 移除所有active状态
+    document.querySelectorAll('.tree-item').forEach(item => item.classList.remove('active'));
+    
+    if (type === 'folder') {
+        // 点击文件夹，展开/折叠
+        const expandIcon = treeItem.querySelector('.expand-icon');
+        if (expandIcon && !expandIcon.classList.contains('empty')) {
+            toggleTreeExpand(event, expandIcon);
+        }
+        treeItem.classList.add('active');
+        // 尝试加载该文件夹下的 index.md
+        loadFolderIndex(path);
+    } else if (type === 'file') {
+        // 点击文件，加载内容
+        treeItem.classList.add('active');
+        loadArticle(path);
+    }
+});
+
+// 加载文章内容
+function loadArticle(filePath) {
+    currentFilePath = filePath;
+    
+    const articleDir = filePath.substring(0, filePath.replace(/\\/g, '/').lastIndexOf('/'));
+    const imagePath = articleDir + '/img';
+    
+    let url = `/api/article/content?path=${encodeURIComponent(filePath)}`;
+    url += `&image_path=${encodeURIComponent(imagePath)}`;
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(result => {
+            if (result && result.code === 200 && result.data) {
+                document.getElementById('article-content').innerHTML = `
+                    <div class="markdown-content">${result.data.content}</div>
+                `;
+                document.getElementById('article-content').scrollTop = 0;
+                document.getElementById('article-content').style.padding = '';
+                document.getElementById('article-content').style.alignItems = '';
+
+                document.querySelectorAll('.tree-item').forEach(item => item.classList.remove('active'));
+                const treeItem = document.querySelector(`.tree-item[data-path="${filePath.replace(/\\/g, '\\\\')}"]`);
+                if (treeItem) {
+                    treeItem.classList.add('active');
+                    let parent = treeItem.closest('.tree-children');
+                    while (parent) {
+                        parent.classList.add('expanded');
+                        const parentLi = parent.closest('li');
+                        if (parentLi) {
+                            const expandIcon = parentLi.querySelector(':scope > .tree-item .expand-icon');
+                            if (expandIcon) expandIcon.classList.add('expanded');
+                        }
+                        parent = parentLi ? parentLi.closest('.tree-children') : null;
+                    }
+                }
+
+                // 判断是否是 index.md
+                const sep = filePath.includes('\\') ? '\\' : '/';
+                const fileName = filePath.split(sep).pop().toLowerCase();
+                const isIndexMd = fileName === 'index.md';
+                const folderPath = isIndexMd ? filePath.substring(0, filePath.lastIndexOf(sep)) : '';
+
+                const toc = document.getElementById('article-toc');
+                if (toc) toc.style.display = isIndexMd ? 'none' : 'flex';
+
+                // 对于非 index.md，注入文章菜单栏
+                if (!isIndexMd) {
+                    injectArticleToolbar(result.data.raw || '');
+                    if (pendingOpenInEdit) {
+                        pendingOpenInEdit = false;
+                        setTimeout(() => { enterEditMode(); }, 100);
+                    }
+                } else {
+                    removeArticleToolbar();
+                }
+
+                if (isIndexMd && folderPath) {
+                    currentFolderPath = folderPath;
+                    fetch(`/api/article/folder-meta?path=${encodeURIComponent(folderPath)}`)
+                        .then(res => res.json())
+                        .then(metaResult => {
+                            const meta = metaResult.data || {};
+                            injectH1Settings(meta);
+                            transformIndexDocList(result.data.raw || '');
+                            generateToc();
+                        })
+                        .catch(() => {
+                            injectH1Settings({ icon: 'open_file_folder', name: '' });
+                            generateToc();
+                        });
+                } else {
+                    currentFolderPath = '';
+                    generateToc();
+                }
+            } else {
+                document.getElementById('article-content').innerHTML = `
+                    <div class="empty-content">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.4"/><path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="10"/></svg>
+                        <p>${result?.message || '无法加载文章内容'}</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Failed to load article:', error);
+            document.getElementById('article-content').innerHTML = `
+                <div class="empty-content">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.4"/><path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="10"/></svg>
+                    <p>网络错误，无法加载文章</p>
+                </div>
+            `;
+        });
+}
+
+// 在 h1 前面注入图标、后面注入设置按钮
+function injectH1Settings(meta) {
+    const content = document.getElementById('article-content');
+    const h1 = content.querySelector('.markdown-content h1');
+    if (!h1) return;
+
+    const iconKey = meta.icon || 'open_file_folder';
+    const iconUrl = `/api/article/emoji/${encodeURIComponent(iconKey)}`;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'md-h1-wrapper';
+
+    const iconImg = document.createElement('img');
+    iconImg.className = 'md-folder-icon-img';
+    iconImg.src = iconUrl;
+    iconImg.alt = 'icon';
+
+    h1.parentNode.insertBefore(wrapper, h1);
+    wrapper.appendChild(iconImg);
+    wrapper.appendChild(h1);
+
+    const btnWrapper = document.createElement('span');
+    btnWrapper.style.position = 'relative';
+    btnWrapper.style.flexShrink = '0';
+    btnWrapper.style.marginLeft = 'auto';
+
+    const btn = document.createElement('button');
+    btn.className = 'md-folder-settings-btn';
+    btn.innerHTML = '<img src="/static/emoji/more.png" class="emoji-icon" />';
+    btn.onclick = function(e) {
+        e.stopPropagation();
+        const dd = btnWrapper.querySelector('.md-settings-dropdown');
+        dd.classList.toggle('show');
+    };
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'md-settings-dropdown';
+    dropdown.innerHTML = `
+        <button onclick="openFolderSettings()">
+            <img src="/static/emoji/Gear_3d.png" class="emoji-icon" /> 更多设置
+        </button>
+    `;
+
+    btnWrapper.appendChild(btn);
+    btnWrapper.appendChild(dropdown);
+    wrapper.appendChild(btnWrapper);
+
+    // 点击其他地方关闭下拉
+    document.addEventListener('click', function closeMdDropdown(e) {
+        if (!btnWrapper.contains(e.target)) {
+            dropdown.classList.remove('show');
+        }
+    });
+}
+
+// 注入文章菜单栏（非 index.md 页面）
+let currentRawContent = '';
+
+function injectArticleToolbar(rawContent) {
+    currentRawContent = rawContent;
+
+    const outerContent = document.querySelector('.article-content');
+    const innerContent = document.getElementById('article-content');
+    if (!outerContent || !innerContent) return;
+    if (!innerContent.querySelector('.markdown-content')) return;
+
+    let menubar = outerContent.querySelector('.article-menubar');
+    if (!menubar) {
+        menubar = document.createElement('div');
+        menubar.className = 'article-menubar';
+        menubar.innerHTML = `
+            <div class="article-menubar-inner">
+                <div class="article-menubar-actions" id="article-menubar-actions"></div>
+            </div>
+        `;
+        outerContent.insertBefore(menubar, innerContent);
+    }
+
+    renderMenubarButtons('read');
+}
+
+function renderMenubarButtons(mode) {
+    const actions = document.getElementById('article-menubar-actions');
+    if (!actions) return;
+
+    actions.innerHTML = '';
+
+    if (mode === 'read') {
+        // 收藏按钮
+        const favBtn = document.createElement('button');
+        favBtn.className = 'article-menubar-btn';
+        favBtn.setAttribute('id', 'article-fav-btn');
+        favBtn.style.padding = '6px 8px';
+        updateFavoriteBtnState(favBtn);
+        favBtn.onclick = function() {
+            const info = getCurrentDocInfo();
+            toggleFavorite(currentFilePath, info.title, info.folderPath);
+            updateFavoriteBtnState(favBtn);
+        };
+        actions.appendChild(favBtn);
+
+        const editBtn = document.createElement('button');
+        editBtn.className = 'article-menubar-btn';
+        editBtn.setAttribute('data-role', 'edit');
+        editBtn.innerHTML = '<img src="/static/emoji/Pen_3d.png" class="emoji-icon" /> 编辑';
+        editBtn.onclick = function() { enterEditMode(); };
+        actions.appendChild(editBtn);
+
+        // 三点菜单按钮（删除）
+        const menuWrap = document.createElement('span');
+        menuWrap.style.position = 'relative';
+
+        const menuBtn = document.createElement('button');
+        menuBtn.className = 'article-menubar-btn';
+        menuBtn.style.padding = '6px 8px';
+        menuBtn.innerHTML = '<img src="/static/emoji/more.png" class="emoji-icon" />';
+        menuBtn.onclick = function(e) {
+            e.stopPropagation();
+            document.querySelectorAll('.menubar-dropdown.show').forEach(d => d.classList.remove('show'));
+            const dd = menuWrap.querySelector('.menubar-dropdown');
+            dd.classList.toggle('show');
+        };
+
+        const menuDropdown = document.createElement('div');
+        menuDropdown.className = 'sidebar-dropdown menubar-dropdown';
+        menuDropdown.innerHTML = `
+            <button onclick="deleteDocument('${(currentFilePath || '').replace(/\\/g, '\\\\')}')">
+                <img src="/static/emoji/Wastebasket_3d.png" class="emoji-icon" /> 删除
+            </button>
+        `;
+
+        menuWrap.appendChild(menuBtn);
+        menuWrap.appendChild(menuDropdown);
+        actions.appendChild(menuWrap);
+    } else {
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'article-menubar-btn btn-cancel';
+        cancelBtn.textContent = '取消';
+        cancelBtn.onclick = function() { cancelEditMode(); };
+
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'article-menubar-btn';
+        saveBtn.innerHTML = '<img src="/static/emoji/Check mark_3d.png" class="emoji-icon" /> 更新';
+        saveBtn.setAttribute('data-role', 'save');
+        saveBtn.onclick = function() { saveArticleEdit(document.querySelector('.article-editor-textarea')?.value || ''); };
+
+        actions.appendChild(cancelBtn);
+        actions.appendChild(saveBtn);
+    }
+}
+
+function enterEditMode() {
+    const content = document.getElementById('article-content');
+    const markdownEl = content.querySelector('.markdown-content');
+    if (!markdownEl || !currentFilePath) return;
+
+    markdownEl.style.display = 'none';
+    const h1Wrapper = content.querySelector('.md-h1-wrapper');
+    if (h1Wrapper) h1Wrapper.style.display = 'none';
+
+    const existingEditor = content.querySelector('.article-editor');
+    if (existingEditor) existingEditor.remove();
+
+    // 编辑模式下 content-body 拉满全宽
+    content.style.padding = '0';
+    content.style.alignItems = 'stretch';
+
+    // 注入编辑工具栏
+    let editToolbar = content.querySelector('.article-edit-toolbar');
+    if (!editToolbar) {
+        editToolbar = document.createElement('div');
+        editToolbar.className = 'article-edit-toolbar';
+        editToolbar.innerHTML = `
+            <button class="tool-btn" title="粗体 Ctrl+B" onclick="insertMD('**', '**')"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg></button>
+            <button class="tool-btn" title="斜体 Ctrl+I" onclick="insertMD('*', '*')"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8"/><path d="M15 4h6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"/><path d="M14 4v16"/></svg></button>
+            <button class="tool-btn" title="删除线" onclick="insertMD('~~', '~~')"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></button>
+            <span class="tool-sep"></span>
+            <button class="tool-btn" title="标题" onclick="insertMDLine('## ')"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12"/><path d="M6 12h12"/><path d="M6 16h10"/><path d="M4 20h16"/></svg></button>
+            <button class="tool-btn" title="引用" onclick="insertMDLine('> ')"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 17h6"/><path d="M17 21h3"/><path d="M14 17c0-4-6-4.5-6-9a6 6 0 1 1 12 0c0 1 .5 3 2 3"/></svg></button>
+            <button class="tool-btn" title="代码块" onclick="insertMD('\\n\`\`\`\\n', '\\n\`\`\`\\n')"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="15" height="15" rx="2" ry="2"/><path d="M17 2v4"/><path d="M17 18v4"/><path d="M20.5 10.5h-4"/></svg></button>
+            <span class="tool-sep"></span>
+            <button class="tool-btn" title="无序列表" onclick="insertMDLine('- ')"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h12"/><path d="M8 12h12"/><path d="M8 18h12"/><path d="M5 6v.01"/><path d="M5 12v.01"/><path d="M5 18v.01"/></svg></button>
+            <button class="tool-btn" title="有序列表" onclick="insertMDLine('1. ')"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h12"/><path d="M8 12h12"/><path d="M8 18h12"/><path d="M4 6h1"/><path d="M4 12h2"/><path d="M3.5 18h2.5"/></svg></button>
+            <button class="tool-btn" title="表格" onclick="insertMD('', '\\n| 列1 | 列2 |\\n| --- | --- |\\n|     |     |\\n')"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3zM3 9h18"/><path d="M9 3v18"/></svg></button>
+            <span class="tool-sep"></span>
+            <button class="tool-btn" title="链接" onclick="insertMD('[', '](url)')"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+            <button class="tool-btn" title="图片" onclick="insertMD('![alt](', ')')"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
+            <button class="tool-btn" title="水平线" onclick="insertMD('\\n---\\n', '')"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg></button>
+            <span class="tool-sep"></span>
+            <button class="tool-btn" title="上传附件" onclick="triggerAttachmentUpload()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/></svg></button>
+        `;
+        content.insertBefore(editToolbar, content.firstChild);
+    }
+    editToolbar.style.display = 'flex';
+
+    let attachmentInput = document.getElementById('attachment-upload-input');
+    if (!attachmentInput) {
+        attachmentInput = document.createElement('input');
+        attachmentInput.type = 'file';
+        attachmentInput.id = 'attachment-upload-input';
+        attachmentInput.multiple = true;
+        attachmentInput.style.display = 'none';
+        attachmentInput.onchange = function(e) { handleAttachmentUpload(this.files); };
+        document.body.appendChild(attachmentInput);
+    }
+
+    // 创建分栏容器
+    const splitWrap = document.createElement('div');
+    splitWrap.className = 'editor-split';
+    splitWrap.setAttribute('id', 'editor-split');
+
+    // 左侧：编辑器
+    const leftPane = document.createElement('div');
+    leftPane.className = 'editor-split-left';
+
+    const textarea = document.createElement('textarea');
+    textarea.className = 'article-editor-textarea';
+    textarea.value = currentRawContent;
+    textarea.setAttribute('id', 'article-editor-textarea');
+    textarea.oninput = debounce(updatePreview, 200);
+
+    leftPane.appendChild(textarea);
+
+    // 右侧：预览
+    const rightPane = document.createElement('div');
+    rightPane.className = 'editor-split-right';
+
+    const preview = document.createElement('div');
+    preview.className = 'editor-preview';
+    preview.setAttribute('id', 'editor-preview');
+    rightPane.appendChild(preview);
+
+    splitWrap.appendChild(leftPane);
+    splitWrap.appendChild(rightPane);
+    content.appendChild(splitWrap);
+
+    // 首次加载预览
+    updatePreview();
+
+    renderMenubarButtons('edit');
+
+    const toc = document.getElementById('article-toc');
+    if (toc) toc.style.display = 'none';
+
+    textarea.setSelectionRange(0, 0);
+    textarea.focus({ preventScroll: true });
+}
+
+// 防抖工具函数
+function debounce(fn, delay) {
+    let timer;
+    return function() {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(this, arguments), delay);
+    };
+}
+
+// 实时更新预览
+function updatePreview() {
+    const ta = document.getElementById('article-editor-textarea');
+    const preview = document.getElementById('editor-preview');
+    if (!ta || !preview) return;
+
+    const md = ta.value;
+
+    fetch('/api/article/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: md })
+    })
+        .then(res => res.json())
+        .then(result => {
+            if (result && result.code === 200 && result.data) {
+                preview.innerHTML = result.data.content;
+            }
+        })
+        .catch(() => {});
+}
+
+function cancelEditMode() {
+    const content = document.getElementById('article-content');
+    const markdownEl = content.querySelector('.markdown-content');
+    if (markdownEl) markdownEl.style.display = '';
+
+    const h1Wrapper = content.querySelector('.md-h1-wrapper');
+    if (h1Wrapper) h1Wrapper.style.display = '';
+
+    const splitWrap = content.querySelector('#editor-split');
+    if (splitWrap) splitWrap.remove();
+
+    const editToolbar = content.querySelector('.article-edit-toolbar');
+    if (editToolbar) editToolbar.style.display = 'none';
+
+    // 恢复 content-body 样式
+    content.style.padding = '';
+    content.style.alignItems = '';
+
+    renderMenubarButtons('read');
+
+    const toc = document.getElementById('article-toc');
+    if (toc) toc.style.display = 'flex';
+}
+
+function saveArticleEdit(newContent) {
+    if (!currentFilePath) return;
+
+    const saveBtn = document.querySelector('[data-role="save"]');
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-spin" style="margin-right:4px;vertical-align:middle;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> 保存中';
+    }
+
+    fetch('/api/article/content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            path: currentFilePath,
+            content: newContent
+        })
+    })
+        .then(res => res.json())
+        .then(result => {
+            if (result.code === 200) {
+                currentRawContent = newContent;
+
+                // 检测 H1 标题，若与文件名不同则重命名
+                const h1Match = newContent.match(/^#\s+(.+?)(?:\r?\n|$)/m);
+                if (h1Match) {
+                    const newTitle = h1Match[1].trim();
+                    if (newTitle && newTitle !== '无标题文档') {
+                        const sep = currentFilePath.includes('\\') ? '\\' : '/';
+                        const oldBase = currentFilePath.split(sep).pop().replace(/\.md$/i, '');
+                        if (newTitle !== oldBase) {
+                            fetch('/api/article/rename', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ file_path: currentFilePath, new_name: newTitle })
+                            })
+                                .then(res => res.json())
+                                .then(renameResult => {
+                                    if (renameResult.code === 200 && renameResult.data) {
+                                        currentFilePath = renameResult.data.path;
+                                    }
+                                    loadArticle(currentFilePath);
+                                    loadDocTree();
+                                })
+                                .catch(() => {
+                                    loadArticle(currentFilePath);
+                                    loadDocTree();
+                                });
+                            return;
+                        }
+                    }
+                }
+
+                loadArticle(currentFilePath);
+            } else {
+                alert(result.message || '保存失败');
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = '<img src="/static/emoji/Check mark_3d.png" class="emoji-icon" /> 更新';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('保存失败:', error);
+            alert('保存失败');
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<img src="/static/emoji/Check mark_3d.png" class="emoji-icon" /> 更新';
+            }
+        });
+}
+
+// 清除文章菜单栏（index.md 页面不需要）
+function removeArticleToolbar() {
+    const menubar = document.querySelector('.article-menubar');
+    if (menubar) menubar.remove();
+    const editToolbar = document.querySelector('.article-edit-toolbar');
+    if (editToolbar) editToolbar.remove();
+    const splitWrap = document.querySelector('#editor-split');
+    if (splitWrap) splitWrap.remove();
+    const content = document.getElementById('article-content');
+    if (content) {
+        content.style.padding = '';
+        content.style.alignItems = '';
+    }
+}
+
+// 将 index.md 中的文档链接列表转换为可拖拽卡片
+let indexDocLinks = [];
+let indexRawMd = '';
+
+function transformIndexDocList(rawMd) {
+    const content = document.getElementById('article-content');
+    const mdEl = content.querySelector('.markdown-content');
+    if (!mdEl) return;
+
+    indexRawMd = rawMd;
+    indexDocLinks = [];
+
+    // 解析 ## [title](file.md) 行
+    const linkRegex = /^##\s+\[(.+?)\]\((.+?\.md)\)/m;
+    const lines = rawMd.split(/\r?\n/);
+    for (const line of lines) {
+        const match = line.trim().match(linkRegex);
+        if (match) {
+            indexDocLinks.push({
+                title: match[1],
+                href: match[2],
+                lineText: line.trim()
+            });
+        }
+    }
+
+    if (indexDocLinks.length === 0) return;
+
+    // 隐藏渲染出的 h2 元素（保留 h1 和 blockquote）
+    const h2s = mdEl.querySelectorAll('h2');
+    h2s.forEach(h2 => h2.style.display = 'none');
+
+    // 构建卡片列表
+    const list = document.createElement('div');
+    list.className = 'index-doc-list';
+    list.setAttribute('id', 'index-doc-list');
+
+    indexDocLinks.forEach((link, idx) => {
+        const card = document.createElement('div');
+        card.className = 'index-doc-card';
+        card.setAttribute('draggable', 'true');
+        card.setAttribute('data-index', String(idx));
+        card.innerHTML = `
+            <span class="index-doc-drag"><img src="/static/emoji/Grip lines_3d.png" class="emoji-icon" /></span>
+            <img src="/static/emoji/Page facing up_3d.png" class="index-doc-icon" />
+            <span class="index-doc-title">${escapeHtml(link.title)}</span>
+            <span class="index-doc-arrow"><img src="/static/emoji/Right arrow_3d.png" class="emoji-icon" /></span>
+        `;
+        card.addEventListener('click', function(e) {
+            if (e.target.closest('.index-doc-drag')) return;
+            const sep = currentFilePath.includes('\\') ? '\\' : '/';
+            const dir = currentFilePath.substring(0, currentFilePath.lastIndexOf(sep));
+            loadArticle(dir + sep + link.href);
+        });
+        card.addEventListener('dragstart', onIndexDragStart);
+        card.addEventListener('dragover', onIndexDragOver);
+        card.addEventListener('dragleave', onIndexDragLeave);
+        card.addEventListener('drop', onIndexDrop);
+        card.addEventListener('dragend', onIndexDragEnd);
+        list.appendChild(card);
+    });
+
+    mdEl.appendChild(list);
+}
+
+function onIndexDragStart(e) {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', e.currentTarget.dataset.index);
+    e.currentTarget.classList.add('dragging');
+}
+
+function onIndexDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const dragging = document.querySelector('.index-doc-card.dragging');
+    if (dragging && dragging !== e.currentTarget) {
+        e.currentTarget.classList.add('drag-over');
+    }
+}
+
+function onIndexDragLeave(e) {
+    e.currentTarget.classList.remove('drag-over');
+}
+
+function onIndexDrop(e) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
+    const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+    const toIdx = parseInt(e.currentTarget.dataset.index);
+    if (isNaN(fromIdx) || isNaN(toIdx) || fromIdx === toIdx) return;
+
+    // 调整位置
+    const moved = indexDocLinks.splice(fromIdx, 1)[0];
+    indexDocLinks.splice(toIdx, 0, moved);
+
+    // 重建 index.md 内容
+    const lines = indexRawMd.split(/\r?\n/);
+    const linkRegex = /^##\s+\[(.+?)\]\((.+?\.md)\)/;
+    const newLines = [];
+    for (const line of lines) {
+        const match = line.trim().match(linkRegex);
+        if (match) {
+            continue; // 跳过旧的 ## 行
+        }
+        newLines.push(line);
+    }
+
+    // 清理末尾空行
+    while (newLines.length && newLines[newLines.length - 1].trim() === '') {
+        newLines.pop();
+    }
+    newLines.push('');
+
+    // 追加重排序后的链接
+    indexDocLinks.forEach(link => {
+        newLines.push(link.lineText);
+        newLines.push('');
+    });
+
+    const newMd = newLines.join('\n');
+    indexRawMd = newMd;
+
+    // 保存到服务器并刷新
+    fetch('/api/article/content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: currentFilePath, content: newMd })
+    })
+        .then(res => res.json())
+        .then(result => {
+            if (result.code === 200) {
+                // 重新渲染列表而不重新加载文章
+                const list = document.getElementById('index-doc-list');
+                if (list) list.remove();
+                // 恢复 h2 再重新转换
+                const mdEl = document.getElementById('article-content').querySelector('.markdown-content');
+                if (mdEl) {
+                    mdEl.querySelectorAll('h2').forEach(h2 => h2.style.display = '');
+                }
+                transformIndexDocList(newMd);
+            }
+        })
+        .catch(() => {});
+}
+
+function onIndexDragEnd(e) {
+    e.currentTarget.classList.remove('dragging');
+    document.querySelectorAll('.index-doc-card.drag-over').forEach(c => c.classList.remove('drag-over'));
+}
+
+// 编辑器工具栏：在光标处插入环绕文本
+function insertMD(before, after) {
+    const ta = document.getElementById('article-editor-textarea');
+    if (!ta) return;
+    before = before.replace(/\\n/g, '\n');
+    after = after.replace(/\\n/g, '\n');
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const selected = ta.value.substring(start, end);
+    const replacement = before + selected + after;
+    ta.setRangeText(replacement, start, end, 'end');
+    ta.focus({ preventScroll: true });
+    updatePreview();
+}
+
+// 编辑器工具栏：在当前行开头插入前缀
+function insertMDLine(prefix) {
+    const ta = document.getElementById('article-editor-textarea');
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const value = ta.value;
+    const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+    ta.setRangeText(prefix, lineStart, lineStart, 'end');
+    ta.focus({ preventScroll: true });
+    updatePreview();
+}
+
+// 编辑器工具栏：在光标处插入HTML内容
+function insertHTML(html) {
+    const ta = document.getElementById('article-editor-textarea');
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    ta.setRangeText(html, start, end, 'end');
+    ta.focus({ preventScroll: true });
+    updatePreview();
+}
+
+// 生成文章目录
+function generateToc() {
+    const content = document.getElementById('article-content');
+    const tocList = document.getElementById('toc-list');
+    const headings = content.querySelectorAll('h1, h2, h3');
+    
+    if (headings.length === 0) {
+        tocList.innerHTML = '<div style="padding: 16px; text-align: center; color: #909399; font-size: 12px;">暂无目录</div>';
+        return;
+    }
+    
+    let tocHtml = '';
+    headings.forEach((heading, index) => {
+        const level = heading.tagName.toLowerCase();
+        const id = `toc-${index}`;
+        heading.id = id;
+        tocHtml += `
+            <div class="toc-item toc-${level}" onclick="scrollToHeading('${id}')">
+                ${heading.textContent}
+            </div>
+        `;
+    });
+    
+    tocList.innerHTML = tocHtml;
+}
+
+// 滚动到指定标题
+function scrollToHeading(id) {
+    const heading = document.getElementById(id);
+    if (heading) {
+        heading.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.querySelectorAll('.toc-item').forEach(item => item.classList.remove('active'));
+        document.querySelector(`.toc-item[onclick*="${id}"]`)?.classList.add('active');
+    }
+}
+
+// 切换目录显示
+function toggleToc() {
+    const toc = document.getElementById('article-toc');
+    toc.classList.toggle('show');
+}
+
+// 拦截文章内容中的 .md 链接跳转
+document.addEventListener('click', function(event) {
+    // 跳过设置按钮区域
+    if (event.target.closest('.md-folder-settings-btn') || event.target.closest('.icon-picker-hover')) return;
+    
+    const link = event.target.closest('.markdown-content a');
+    if (!link) return;
+
+    const href = link.getAttribute('href');
+    if (!href) return;
+
+    if (href.startsWith('http://') || href.startsWith('https://') || href.startsWith('#') || href.startsWith('/api/')) return;
+
+    if (!currentFilePath) return;
+
+    const sep = currentFilePath.includes('\\') ? '\\' : '/';
+    const currentDir = currentFilePath.substring(0, currentFilePath.lastIndexOf(sep));
+
+    let targetPath = href;
+    if (href.startsWith('./')) {
+        targetPath = href.substring(2);
+    } else if (href.startsWith('../')) {
+        targetPath = currentDir + sep + '..' + sep + href.substring(3);
+    } else {
+        targetPath = href;
+    }
+
+    let fullPath;
+    if (targetPath.includes('/') || targetPath.includes('\\')) {
+        fullPath = currentDir + sep + targetPath.replace(/\//g, sep);
+    } else {
+        fullPath = currentDir + sep + targetPath;
+    }
+
+    fullPath = fullPath.replace(/\\\.\\/g, sep).replace(/\/\.\//g, sep);
+
+    if (!fullPath.toLowerCase().endsWith('.md')) {
+        fullPath += '.md';
+    }
+
+    event.preventDefault();
+    loadArticle(fullPath);
+});
+
+// 切换到文章视图时加载文档树
+document.addEventListener('viewChange', function(event) {
+    if (event.detail.view === 'article') {
+        loadDocTree();
+    }
+});
+
+// 当前文件夹路径
+let currentFolderPath = '';
+
+// 加载文件夹下的 index.md
+function loadFolderIndex(folderPath) {
+    currentFolderPath = folderPath;
+    const sep = folderPath.includes('\\') ? '\\' : '/';
+    const indexPath = folderPath + sep + 'index.md';
+    loadArticle(indexPath);
+}
+
+// fluentui-emoji 图标列表
+const folderIcons = [
+    'Open file folder', 'File folder', 'Books', 'Blue book', 'Green book',
+    'Orange book', 'Notebook', 'Notebook with decorative cover',
+    'Bookmark', 'Bookmark tabs', 'Card index dividers', 'Card file box',
+    'Brain', 'Light bulb', 'Rocket', 'Globe showing Americas',
+    'Shield', 'Gear', 'Star', 'Glowing star', 'Crown',
+    'Red heart', 'Blue heart', 'Green heart', 'Purple heart', 'Beating heart',
+    'Fire', 'Sparkles', 'Gem stone', 'Diamond with a dot',
+    'Wrench', 'Hammer and wrench', 'Toolbox',
+    'Locked', 'Key', 'Desktop computer', 'Laptop',
+    'Satellite antenna', 'Test tube', 'Alembic',
+    'Microscope', 'Telescope', 'Abacus', 'Atom symbol',
+    'Seedling', 'Four leaf clover', 'Blossom',
+    'Trophy', '1st place medal', 'Hundred points', 'Magnifying glass tilted left',
+    'Package', 'Bomb', 'High voltage', 'Party popper'
+];
+
+let selectedFolderIcon = 'Open file folder';
+
+// 打开文件夹设置弹窗
+function openFolderSettings() {
+    if (!currentFolderPath) return;
+
+    fetch(`/api/article/folder-meta?path=${encodeURIComponent(currentFolderPath)}`)
+        .then(res => res.json())
+        .then(result => {
+            const meta = result.data || {};
+            selectedFolderIcon = meta.icon || 'Open file folder';
+            document.getElementById('folder-name').value = meta.name || '';
+            document.getElementById('folder-description').value = meta.description || '';
+            updateIconPreview();
+            renderIconGrid();
+            document.getElementById('modal-folder-settings').classList.add('show');
+        })
+        .catch(() => {
+            selectedFolderIcon = 'Open file folder';
+            document.getElementById('folder-name').value = currentFolderPath.split(/[\\/]/).pop();
+            document.getElementById('folder-description').value = '';
+            updateIconPreview();
+            renderIconGrid();
+            document.getElementById('modal-folder-settings').classList.add('show');
+        });
+}
+
+// 更新图标预览
+function updateIconPreview() {
+    const preview = document.getElementById('icon-preview');
+    const iconUrl = `/api/article/emoji/${encodeURIComponent(selectedFolderIcon)}`;
+    preview.querySelector('img').src = iconUrl;
+}
+
+// 渲染图标选择网格
+function renderIconGrid() {
+    const grid = document.getElementById('icon-grid');
+    let html = '';
+    folderIcons.forEach(icon => {
+        const iconUrl = `/api/article/emoji/${encodeURIComponent(icon)}`;
+        html += `
+            <div class="icon-option${icon === selectedFolderIcon ? ' selected' : ''}" onclick="selectFolderIcon('${icon.replace(/'/g, "\\'")}')">
+                <img src="${iconUrl}" alt="${icon}" />
+            </div>
+        `;
+    });
+    grid.innerHTML = html;
+}
+
+// 选择图标
+function selectFolderIcon(icon) {
+    selectedFolderIcon = icon;
+    updateIconPreview();
+    renderIconGrid();
+}
+
+// 保存文件夹设置
+function saveFolderSettings() {
+    const name = document.getElementById('folder-name').value.trim();
+    const description = document.getElementById('folder-description').value.trim();
+
+    if (!name) {
+        alert('请输入文件夹名称');
+        return;
+    }
+
+    fetch('/api/article/folder-meta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            path: currentFolderPath,
+            icon: selectedFolderIcon,
+            name: name,
+            description: description
+        })
+    })
+        .then(res => res.json())
+        .then(result => {
+            if (result.code === 200) {
+                closeFolderSettings();
+                refreshFolderDisplay(selectedFolderIcon, name);
+            } else {
+                alert(result.message || '保存失败');
+            }
+        })
+        .catch(error => {
+            console.error('保存失败:', error);
+            alert('保存失败');
+        });
+}
+
+// 关闭文件夹设置弹窗
+function closeFolderSettings() {
+    document.getElementById('modal-folder-settings').classList.remove('show');
+}
+
+// 刷新文件夹显示（图标 + 名称 + 目录树 + 内容）
+function refreshFolderDisplay(icon, name) {
+    // 更新 h1 前的图标
+    const iconImg = document.querySelector('.md-folder-icon-img');
+    if (iconImg) {
+        iconImg.src = `/api/article/emoji/${encodeURIComponent(icon)}`;
+    }
+
+    // 更新 h1 文本
+    const h1 = document.querySelector('.md-h1-wrapper h1');
+    if (h1 && name) h1.textContent = name;
+
+    // 更新页面内 blockquote（简介）
+    const description = document.getElementById('folder-description').value.trim();
+    const blockquote = document.querySelector('.markdown-content blockquote');
+    if (blockquote) {
+        if (description) {
+            const p = blockquote.querySelector('p');
+            if (p) {
+                p.textContent = description;
+            } else {
+                blockquote.innerHTML = '<p>' + description + '</p>';
+            }
+        } else {
+            blockquote.remove();
+        }
+    }
+
+    // 更新目录树 - 名称和图标
+    const escaped = currentFolderPath.replace(/\\/g, '\\\\');
+    const treeItem = document.querySelector(`.tree-item.folder[data-path="${escaped}"]`);
+    if (treeItem) {
+        const nameSpan = treeItem.querySelector('.tree-name');
+        if (nameSpan && name) nameSpan.textContent = name;
+
+        const iconEl = treeItem.querySelector('.tree-icon');
+        if (iconEl && icon) {
+            const emojiUrl = `/api/article/emoji/${encodeURIComponent(icon)}`;
+            if (iconEl.tagName === 'I') {
+                const img = document.createElement('img');
+                img.className = 'tree-emoji-icon';
+                img.src = emojiUrl;
+                img.alt = 'icon';
+                iconEl.replaceWith(img);
+            } else {
+                iconEl.src = emojiUrl;
+            }
+        }
+    }
+}
+
+// ========== 图片页面功能 ==========
+
+// 当前图片列表
+let currentImages = [];
+let currentPreviewIndex = 0;
+let currentSelectedFolder = '';
+let allImagesCache = [];
+let treeOriginalOrder = null;
+
+// 加载图片页面
+function loadPicturePage() {
+    const pictureView = document.getElementById('view-picture');
+    if (!pictureView) return;
+
+    // 初始化布局
+    pictureView.innerHTML = `
+        <div class="picture-view">
+            <div class="picture-container">
+                <div class="picture-sidebar">
+                    <div class="sidebar-search-box">
+                        <img src="/static/emoji/Magnifying glass tilted right_3d.png" class="emoji-icon" />
+                        <input type="text" id="folder-search" placeholder="搜索..." />
+                        <button class="sidebar-menu-btn" onclick="toggleSidebarMenu(event)">
+                            <img src="/static/emoji/more.png" class="emoji-icon" />
+                        </button>
+                        <div class="sidebar-dropdown" id="sidebar-dropdown">
+                            <button onclick="showNewFolderModal()"><img src="/static/emoji/File folder plus_3d.png" class="emoji-icon" /> 新建文件夹</button>
+                        </div>
+                    </div>
+                    <div class="sidebar-tree" id="picture-tree">
+                        <div class="tree-loading">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                            <span>加载中...</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="picture-content">
+                    <div class="content-toolbar">
+                        <div class="toolbar-left">
+                            <div class="view-toggle">
+                                <button class="view-btn active" data-view="grid" title="网格视图">
+                                    <img src="/static/emoji/Squares four_3d.png" class="emoji-icon" />
+                                </button>
+                                <button class="view-btn" data-view="list" title="列表视图">
+                                    <img src="/static/emoji/Card index_3d.png" class="emoji-icon" />
+                                </button>
+                            </div>
+                        </div>
+                        <div class="toolbar-right">
+                            <button class="toolbar-btn" id="btn-upload" style="display:none" onclick="triggerImageUpload()" title="上传图片">
+                                <img src="/static/emoji/Cloud with lightning_3d.png" class="emoji-icon" /> 上传
+                            </button>
+                            <div class="toolbar-more-wrap">
+                                <button class="toolbar-btn toolbar-more-btn" onclick="toggleToolbarMenu(event)" title="更多">
+                                    <img src="/static/emoji/more.png" class="emoji-icon" />
+                                </button>
+                                <div class="toolbar-dropdown" id="toolbar-dropdown">
+                                    <button onclick="enterSelectMode()"><img src="/static/emoji/Wastebasket_3d.png" class="emoji-icon" /> 删除图片</button>
+                                </div>
+                            </div>
+                            <div class="select-actions" id="select-actions" style="display:none;">
+                                <label class="select-all-label">
+                                    <input type="checkbox" id="select-all-cb" onchange="toggleSelectAll(this.checked)"> 全选
+                                </label>
+                                <button class="toolbar-btn toolbar-btn-danger" onclick="confirmDeleteSelected()">
+                                    <img src="/static/emoji/Check mark_3d.png" class="emoji-icon" /> 确认删除 (<span id="selected-count">0</span>)
+                                </button>
+                                <button class="toolbar-btn" onclick="cancelSelectMode()">取消</button>
+                            </div>
+                            <input type="file" id="file-upload-input" multiple accept="image/*" style="display:none;" onchange="handleImageUpload(this.files)">
+                        </div>
+                    </div>
+                    
+                    <div class="image-grid-container" id="image-grid">
+                        <div class="empty-state">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.4"/><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5-4 4-3-3"/></svg>
+                            <p>暂无图片</p>
+                            <p class="empty-hint">请先在设置页面配置资源路径</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // 绑定事件
+    bindPictureEvents();
+    
+    // 加载图片目录树
+    loadPictureTree();
+    
+    // 加载图片列表
+    loadImages();
+}
+
+// 绑定图片页面事件
+function bindPictureEvents() {
+    // 搜索框事件
+    const searchInput = document.getElementById('folder-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', filterPictureTree);
+    }
+
+    // 视图切换事件
+    const viewBtns = document.querySelectorAll('.view-btn');
+    viewBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            viewBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            const gridContainer = document.getElementById('image-grid');
+            if (gridContainer) {
+                if (this.dataset.view === 'list') {
+                    gridContainer.classList.add('list-view');
+                } else {
+                    gridContainer.classList.remove('list-view');
+                }
+            }
+        });
+    });
+
+    // 键盘事件（图片预览）
+    document.addEventListener('keydown', function(e) {
+        const modal = document.getElementById('image-modal');
+        if (!modal || !modal.classList.contains('show')) return;
+
+        if (e.key === 'Escape') {
+            closeImageModal();
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            prevImage();
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            nextImage();
+        }
+    });
+}
+
+// 加载图片目录树
+function loadPictureTree() {
+    const treeContainer = document.getElementById('picture-tree');
+    
+    if (!treeContainer) {
+        return;
+    }
+
+    treeContainer.innerHTML = `
+        <div class="tree-loading">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            <span>加载中...</span>
+        </div>
+    `;
+
+    fetch('/api/picture/tree')
+        .then(response => response.json())
+        .then(result => {
+            if (!result || result.code !== 200 || !result.data) {
+                treeContainer.innerHTML = `
+                    <div class="tree-empty">
+                        <img src="/static/emoji/Open file folder_3d.png" class="emoji-icon" />
+                        <span>${result?.message || '该路径下没有图片'}</span>
+                    </div>
+                `;
+                return;
+            }
+
+            const treeData = result.data;
+            
+            treeContainer.innerHTML = buildPictureTreeHTML(treeData);
+            
+            treeOriginalOrder = null;
+            
+            bindPictureTreeEvents();
+            
+            loadAllImages('');
+        })
+        .catch(error => {
+            console.error('Failed to load picture tree:', error);
+            treeContainer.innerHTML = `
+                <div class="tree-empty">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.4"/><path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="10"/></svg>
+                    <span>加载失败，请检查路径配置</span>
+                </div>
+            `;
+        });
+}
+
+// 构建图片目录树HTML
+function buildPictureTreeHTML(nodes) {
+    let html = '<ul class="picture-tree-root">';
+    
+    nodes.filter(n => n.type === 'folder').forEach(node => {
+        const imageCount = countImagesInFolder(node);
+        const iconHtml = node.icon
+            ? `<img class="tree-folder-emoji" src="/api/article/emoji/${encodeURIComponent(node.icon)}" alt="">`
+            : `<img src="/static/emoji/File folder_3d.png" class="tree-icon" />`;
+
+        html += `
+            <li>
+                <div class="picture-tree-item folder" 
+                     data-path="${node.path}" data-type="folder">
+                    ${iconHtml}
+                    <span class="tree-name">${escapeHtml(node.name)}</span>
+                    ${imageCount > 0 ? `<span class="folder-count">${imageCount}</span>` : ''}
+                    <span class="tree-item-menu" data-path="${escapeHtml(node.path)}">
+                        <img src="/static/emoji/more.png" class="emoji-icon" />
+                    </span>
+                </div>
+            </li>
+        `;
+    });
+    
+    html += '</ul>';
+    return html;
+}
+
+// 计算文件夹中的图片数量
+function countImagesInFolder(node) {
+    let count = 0;
+    if (node.type === 'file') {
+        return 1;
+    }
+    if (node.children) {
+        node.children.forEach(child => {
+            count += countImagesInFolder(child);
+        });
+    }
+    return count;
+}
+
+// 绑定图片树事件
+function bindPictureTreeEvents() {
+    const treeItems = document.querySelectorAll('.picture-tree-item');
+    treeItems.forEach(item => {
+        item.addEventListener('click', function(event) {
+            if (event.target.closest('.tree-item-menu')) return;
+            
+            const path = this.dataset.path;
+            
+            document.querySelectorAll('.picture-tree-item').forEach(i => i.classList.remove('active'));
+            this.classList.add('active');
+            
+            currentSelectedFolder = path;
+            const btnUpload = document.getElementById('btn-upload');
+            if (btnUpload) btnUpload.style.display = '';
+            loadImagesByFolder(path);
+        });
+    });
+}
+
+// 搜索过滤图片目录树
+function filterPictureTree() {
+    const input = document.getElementById('folder-search');
+    const keyword = (input?.value || '').trim().toLowerCase();
+    const treeRoot = document.querySelector('.picture-tree-root');
+    
+    if (!treeRoot) return;
+    
+    if (!keyword) {
+        restoreTreeOrder(treeRoot);
+        allTreeItemsShow(treeRoot);
+        if (currentSelectedFolder) {
+            loadImagesByFolder(currentSelectedFolder);
+        } else {
+            renderImages(allImagesCache);
+        }
+        return;
+    }
+
+    if (!treeOriginalOrder) {
+        cacheTreeOrder(treeRoot);
+    }
+    
+    const items = Array.from(treeRoot.children);
+    const matched = [];
+    const unmatched = [];
+    
+    items.forEach(li => {
+        const name = li.querySelector('.tree-name')?.textContent?.toLowerCase() || '';
+        if (name.includes(keyword)) {
+            matched.push(li);
+        } else {
+            unmatched.push(li);
+        }
+    });
+    
+    matched.forEach(li => {
+        li.style.display = '';
+        treeRoot.prepend(li);
+    });
+    unmatched.forEach(li => {
+        li.style.display = 'none';
+    });
+
+    const filtered = allImagesCache.filter(img => img.name.toLowerCase().includes(keyword));
+    currentImages = filtered;
+    renderImages(filtered);
+}
+
+function cacheTreeOrder(treeRoot) {
+    treeOriginalOrder = Array.from(treeRoot.children).slice();
+}
+
+function restoreTreeOrder(treeRoot) {
+    if (!treeOriginalOrder) return;
+    treeOriginalOrder.forEach(li => treeRoot.appendChild(li));
+    treeOriginalOrder = null;
+}
+
+function allTreeItemsShow(treeRoot) {
+    treeRoot.querySelectorAll('li').forEach(li => li.style.display = '');
+}
+
+// 加载所有图片
+function loadAllImages() {
+    fetch('/api/picture/images')
+        .then(response => response.json())
+        .then(result => {
+            if (!result || result.code !== 200 || !result.data) {
+                renderImages([]);
+                return;
+            }
+            currentImages = result.data.map(img => ({
+                name: img.name,
+                path: img.path,
+                url: `/api/picture/image?img=${encodeURIComponent(img.path)}`,
+                size: img.size,
+                modified: img.modified
+            }));
+            allImagesCache = currentImages.slice();
+            renderImages(currentImages);
+        })
+        .catch(() => {
+            renderImages([]);
+        });
+}
+
+// 按文件夹加载图片
+function loadImagesByFolder(folderPath) {
+    fetch('/api/picture/images')
+        .then(response => response.json())
+        .then(result => {
+            if (!result || result.code !== 200 || !result.data) {
+                renderImages([]);
+                return;
+            }
+            
+            const filteredImages = result.data.filter(img => {
+                if (!folderPath) return true;
+                return img.full_path && img.full_path.startsWith(folderPath);
+            });
+            
+            currentImages = filteredImages.map(img => ({
+                name: img.name,
+                path: img.path,
+                url: `/api/picture/image?img=${encodeURIComponent(img.path)}`,
+                size: img.size,
+                modified: img.modified
+            }));
+            renderImages(currentImages);
+        })
+        .catch(() => {
+            renderImages([]);
+        });
+}
+
+// 渲染图片卡片
+function renderImages(images) {
+    const gridContainer = document.getElementById('image-grid');
+    const countEl = document.getElementById('image-count');
+    
+    if (!gridContainer) return;
+    
+    if (!images || images.length === 0) {
+        gridContainer.innerHTML = `
+            <div class="empty-state">
+                <img src="/static/emoji/picture_3d.png" class="emoji-icon" />
+                <p>暂无图片</p>
+                <p class="empty-hint">该文件夹下没有图片文件</p>
+            </div>
+        `;
+        if (countEl) countEl.textContent = '0';
+        return;
+    }
+    
+    if (countEl) countEl.textContent = String(images.length);
+    
+    let html = '<div class="image-grid">';
+    
+    images.forEach((img, index) => {
+        const size = formatFileSize(img.size);
+        const date = formatDate(img.modified);
+        const modeClass = pictureSelectMode ? ' select-mode' : '';
+        const selClass = pictureSelectMode && pictureSelectedPaths.has(img.path) ? ' selected' : '';
+        const clickHandler = pictureSelectMode
+            ? `onclick="toggleImageSelect(${index}, event)"`
+            : `onclick="showImagePreview(currentImages, ${index})"`;
+        
+        html += `
+            <div class="image-card${modeClass}${selClass}" data-index="${index}" ${clickHandler}>
+                <div class="image-preview">
+                    <img src="${img.url}" alt="${img.name}" loading="lazy">
+                    ${pictureSelectMode ? `<span class="image-check"><img src="/static/emoji/Check mark_3d.png" class="emoji-icon" /></span>` : ''}
+                </div>
+                <div class="image-info">
+                    <span class="image-name">${escapeHtml(img.name)}</span>
+                    <span class="image-meta">${size} · ${date}</span>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    gridContainer.innerHTML = html;
+}
+
+// 显示图片预览弹窗
+function showImagePreview(images, index) {
+    if (!images || images.length === 0) return;
+    
+    currentImages = images;
+    currentPreviewIndex = index;
+    
+    // 创建弹窗
+    let modal = document.getElementById('image-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'image-modal';
+        modal.className = 'image-modal';
+        modal.innerHTML = `
+            <div class="modal-overlay" onclick="closeImageModal()"></div>
+            <div class="modal-content">
+                <button class="modal-close" onclick="closeImageModal()"><img src="/static/emoji/Cross mark_3d.png" class="emoji-icon emoji-icon-sm" /></button>
+                <button class="modal-nav modal-prev" onclick="prevImage()"><img src="/static/emoji/Left arrow_3d.png" class="emoji-icon" /></button>
+                <button class="modal-nav modal-next" onclick="nextImage()"><img src="/static/emoji/Right arrow_3d.png" class="emoji-icon" /></button>
+                <div class="image-preview-container" id="preview-container">
+                    <img id="preview-image" src="" alt="">
+                </div>
+                <div class="modal-info">
+                    <span id="preview-name"></span>
+                    <span id="preview-index"></span>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    updatePreviewContent();
+    modal.classList.add('show');
+}
+
+// 更新预览内容
+function updatePreviewContent() {
+    const img = document.getElementById('preview-image');
+    const nameEl = document.getElementById('preview-name');
+    const indexEl = document.getElementById('preview-index');
+    
+    if (!img || !nameEl || !indexEl) return;
+    
+    const currentImg = currentImages[currentPreviewIndex];
+    if (currentImg) {
+        img.src = currentImg.url;
+        nameEl.textContent = currentImg.name;
+        indexEl.textContent = `${currentPreviewIndex + 1} / ${currentImages.length}`;
+    }
+}
+
+// 关闭图片预览弹窗
+function closeImageModal() {
+    const modal = document.getElementById('image-modal');
+    if (modal) {
+        modal.classList.remove('show');
+    }
+}
+
+// 上一张图片
+function prevImage() {
+    if (currentPreviewIndex > 0) {
+        currentPreviewIndex--;
+        updatePreviewContent();
+    }
+}
+
+// 下一张图片
+function nextImage() {
+    if (currentPreviewIndex < currentImages.length - 1) {
+        currentPreviewIndex++;
+        updatePreviewContent();
+    }
+}
+
+// 切换到图片视图时加载
+document.addEventListener('viewChange', function(event) {
+    if (event.detail.view === 'picture') {
+        loadPicturePage();
+    }
+});
+
+let pictureSelectMode = false;
+let pictureSelectedPaths = new Set();
+
+function toggleSidebarMenu(event) {
+    event.stopPropagation();
+    const dd = document.getElementById('sidebar-dropdown');
+    if (!dd) return;
+    const isOpen = dd.classList.contains('show');
+    _closeAllMenus();
+    if (!isOpen) dd.classList.add('show');
+}
+
+function _closeAllMenus() {
+    document.querySelectorAll('.sidebar-dropdown, .tree-item-dropdown').forEach(el => el.classList.remove('show'));
+}
+
+document.addEventListener('click', function(e) {
+    _closeAllMenus();
+    _closeAllToolbarMenus();
+    const menuBtn = e.target.closest('.tree-item-menu');
+    if (menuBtn) {
+        const folderPath = menuBtn.dataset.path;
+        if (folderPath) showTreeItemMenu(e, folderPath);
+    }
+});
+
+function showTreeItemMenu(event, folderPath) {
+    event.stopPropagation();
+    _closeAllMenus();
+    let menu = document.getElementById('tree-item-dd');
+    if (menu) menu.remove();
+
+    menu = document.createElement('div');
+    menu.id = 'tree-item-dd';
+    menu.className = 'tree-item-dropdown show';
+
+    const editBtn = document.createElement('button');
+    editBtn.innerHTML = '<img src="/static/emoji/Pencil_3d.png" class="emoji-icon" /> 编辑图标';
+    editBtn.addEventListener('click', function() {
+        showEditFolderModal(folderPath);
+    });
+    menu.appendChild(editBtn);
+
+    const btn = document.createElement('button');
+    btn.innerHTML = '<img src="/static/emoji/Wastebasket_3d.png" class="emoji-icon" /> 删除文件夹';
+    btn.addEventListener('click', function() {
+        confirmDeleteFolder(folderPath);
+    });
+    menu.appendChild(btn);
+    menu.style.position = 'fixed';
+    menu.style.zIndex = '200';
+    document.body.appendChild(menu);
+
+    const rect = menu.getBoundingClientRect();
+    let left = event.clientX;
+    let top = event.clientY;
+    if (left + rect.width > window.innerWidth - 8) left = window.innerWidth - rect.width - 8;
+    if (top + rect.height > window.innerHeight - 8) top = window.innerHeight - rect.height - 8;
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+    event.stopPropagation();
+}
+
+function showPicModal(html) {
+    const overlay = document.getElementById('pic-modal-overlay');
+    const content = document.getElementById('pic-modal-content');
+    if (!overlay || !content) return;
+    content.innerHTML = html;
+    overlay.classList.add('show');
+}
+
+let editFolderIcon = 'Open file folder';
+let editFolderPath = '';
+
+function showEditFolderModal(folderPath) {
+    _closeAllMenus();
+    editFolderPath = folderPath;
+    const overlay = document.getElementById('pic-modal-overlay');
+    const content = document.getElementById('pic-modal-content');
+    if (!overlay || !content) return;
+
+    const folderName = folderPath.split(/[/\\]/).pop();
+
+    const treeItem = document.querySelector(`.picture-tree-item[data-path="${folderPath.replace(/\\/g, '\\\\')}"]`);
+    const emojiImg = treeItem ? treeItem.querySelector('.tree-folder-emoji') : null;
+    editFolderIcon = emojiImg ? 'Open file folder' : '';
+    if (emojiImg) {
+        const src = emojiImg.src || '';
+        const match = src.match(/emoji\/(.+)$/);
+        if (match) editFolderIcon = decodeURIComponent(match[1]);
+    }
+    if (!editFolderIcon) editFolderIcon = 'Open file folder';
+
+    const iconUrl = `/api/article/emoji/${encodeURIComponent(editFolderIcon)}`;
+
+    content.innerHTML = `
+        <div class="pic-modal-header"><h3>编辑文件夹</h3><button class="btn-close" id="ef-close"><img src="/static/emoji/Cross mark_3d.png" class="emoji-icon emoji-icon-sm" /></button></div>
+        <div class="pic-modal-body">
+            <div class="form-group">
+                <label>文件夹图标</label>
+                <div class="pic-folder-icon-row">
+                    <div class="icon-picker-hover" style="position:relative;">
+                        <div class="icon-preview" id="ef-icon-preview">
+                            <img src="${iconUrl}" alt="icon">
+                        </div>
+                        <div class="icon-dropdown" id="ef-icon-dropdown">
+                            <div class="icon-grid" id="ef-icon-grid"></div>
+                        </div>
+                    </div>
+                    <input type="text" class="form-input" value="${escapeHtml(folderName)}" disabled style="flex:1;opacity:0.6;" />
+                </div>
+                <div class="form-hint" id="ef-hint" style="display:none;"></div>
+            </div>
+        </div>
+        <div class="pic-modal-footer">
+            <button class="toolbar-btn" id="ef-cancel">取消</button>
+            <button class="toolbar-btn toolbar-btn-primary" id="ef-submit">保存</button>
+        </div>
+    `;
+
+    content.querySelector('#ef-close').addEventListener('click', closePicModal);
+    content.querySelector('#ef-cancel').addEventListener('click', closePicModal);
+    content.querySelector('#ef-submit').addEventListener('click', doUpdateFolderIcon);
+    renderEditIconGrid();
+    overlay.classList.add('show');
+}
+
+function renderEditIconGrid() {
+    const grid = document.getElementById('ef-icon-grid');
+    if (!grid) return;
+    let html = '';
+    folderIcons.forEach(icon => {
+        const iconUrl = `/api/article/emoji/${encodeURIComponent(icon)}`;
+        html += `<div class="icon-option${icon === editFolderIcon ? ' selected' : ''}" data-icon="${icon}">
+            <img src="${iconUrl}" alt="${icon}" />
+        </div>`;
+    });
+    grid.innerHTML = html;
+    grid.querySelectorAll('.icon-option').forEach(el => {
+        el.addEventListener('click', function() {
+            editFolderIcon = this.dataset.icon;
+            const preview = document.getElementById('ef-icon-preview');
+            if (preview) preview.querySelector('img').src = `/api/article/emoji/${encodeURIComponent(editFolderIcon)}`;
+            renderEditIconGrid();
+        });
+    });
+}
+
+function doUpdateFolderIcon() {
+    const hint = document.getElementById('ef-hint');
+    fetch('/api/picture/folder-icon', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({path: editFolderPath, icon: editFolderIcon})
+    }).then(r => r.json()).then(result => {
+        if (result.code === 200) {
+            closePicModal();
+            loadPictureTree();
+        } else {
+            if (hint) { hint.textContent = result.message || '更新失败'; hint.style.display = 'block'; }
+        }
+    });
+}
+
+function closePicModal() {
+    const overlay = document.getElementById('pic-modal-overlay');
+    if (overlay) overlay.classList.remove('show');
+}
+
+let selectedPicFolderIcon = 'Open file folder';
+
+function showNewFolderModal() {
+    _closeAllMenus();
+    selectedPicFolderIcon = 'Open file folder';
+    const overlay = document.getElementById('pic-modal-overlay');
+    const content = document.getElementById('pic-modal-content');
+    if (!overlay || !content) return;
+
+    content.innerHTML = `
+        <div class="pic-modal-header"><h3>新建文件夹</h3><button class="btn-close" id="nf-close"><img src="/static/emoji/Cross mark_3d.png" class="emoji-icon emoji-icon-sm" /></button></div>
+        <div class="pic-modal-body">
+            <div class="form-group">
+                <label>文件夹图标与名称</label>
+                <div class="pic-folder-icon-row">
+                    <div class="icon-picker-hover" style="position:relative;">
+                        <div class="icon-preview" id="pic-icon-preview">
+                            <img src="/api/article/emoji/Open%20file%20folder" alt="icon">
+                        </div>
+                        <div class="icon-dropdown" id="pic-icon-dropdown">
+                            <div class="icon-grid" id="pic-icon-grid"></div>
+                        </div>
+                    </div>
+                    <input type="text" class="form-input" id="new-folder-name" placeholder="请输入文件夹名称" style="flex:1;" />
+                </div>
+                <div class="form-hint" id="nf-hint" style="display:none;"></div>
+            </div>
+        </div>
+        <div class="pic-modal-footer">
+            <button class="toolbar-btn" id="nf-cancel">取消</button>
+            <button class="toolbar-btn toolbar-btn-primary" id="nf-submit">创建</button>
+        </div>
+    `;
+
+    content.querySelector('#nf-close').addEventListener('click', closePicModal);
+    content.querySelector('#nf-cancel').addEventListener('click', closePicModal);
+    content.querySelector('#nf-submit').addEventListener('click', doCreateFolder);
+    renderPicIconGrid();
+    overlay.classList.add('show');
+}
+
+function renderPicIconGrid() {
+    const grid = document.getElementById('pic-icon-grid');
+    if (!grid) return;
+    let html = '';
+    folderIcons.forEach(icon => {
+        const iconUrl = `/api/article/emoji/${encodeURIComponent(icon)}`;
+        html += `<div class="icon-option${icon === selectedPicFolderIcon ? ' selected' : ''}" data-icon="${icon}">
+            <img src="${iconUrl}" alt="${icon}" />
+        </div>`;
+    });
+    grid.innerHTML = html;
+    grid.querySelectorAll('.icon-option').forEach(el => {
+        el.addEventListener('click', function() {
+            selectedPicFolderIcon = this.dataset.icon;
+            const preview = document.getElementById('pic-icon-preview');
+            if (preview) preview.querySelector('img').src = `/api/article/emoji/${encodeURIComponent(selectedPicFolderIcon)}`;
+            renderPicIconGrid();
+        });
+    });
+}
+
+function doCreateFolder() {
+    const nameEl = document.getElementById('new-folder-name');
+    const name = (nameEl?.value || '').trim();
+    if (!name) {
+        const hint = document.getElementById('nf-hint');
+        if (hint) { hint.textContent = '请输入文件夹名称'; hint.style.display = 'block'; }
+        return;
+    }
+    const hint = document.getElementById('nf-hint');
+    if (hint) hint.style.display = 'none';
+    const imagePath = getImagePath();
+    fetch('/api/picture/folder', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({parent_path: imagePath, name: name, icon: selectedPicFolderIcon})
+    }).then(r => r.json()).then(result => {
+        if (result.code === 200) {
+            closePicModal();
+            loadPictureTree();
+        } else {
+            if (hint) { hint.textContent = result.message || '创建失败'; hint.style.display = 'block'; }
+        }
+    });
+}
+
+
+function confirmDeleteFolder(folderPath) {
+    _closeAllMenus();
+    const name = folderPath.split(/[/\\]/).pop();
+    const overlay = document.getElementById('pic-modal-overlay');
+    const content = document.getElementById('pic-modal-content');
+    if (!overlay || !content) return;
+
+    content.innerHTML = `
+        <div class="pic-modal-header"><h3>确认删除</h3><button class="btn-close" id="modal-close-btn"><img src="/static/emoji/Cross mark_3d.png" class="emoji-icon emoji-icon-sm" /></button></div>
+        <div class="pic-modal-body" style="text-align:center;padding:24px;">
+            <img src="/static/emoji/Warning sign_3d.png" style="width:36px;height:36px;color:#e6a23c;margin-bottom:12px;display:block;" />
+            <p>确定要删除文件夹 <strong>${escapeHtml(name)}</strong> 吗？</p>
+            <p style="color:#909399;font-size:13px;">该文件夹下的所有图片将被永久删除，此操作不可恢复。</p>
+        </div>
+        <div class="pic-modal-footer">
+            <button class="toolbar-btn" id="modal-cancel-btn">取消</button>
+            <button class="toolbar-btn toolbar-btn-danger" id="modal-confirm-btn">确认删除</button>
+        </div>
+    `;
+    content.querySelector('#modal-close-btn').addEventListener('click', closePicModal);
+    content.querySelector('#modal-cancel-btn').addEventListener('click', closePicModal);
+    content.querySelector('#modal-confirm-btn').addEventListener('click', function() {
+        doDeleteFolder(folderPath);
+    });
+    overlay.classList.add('show');
+}
+
+function doDeleteFolder(folderPath) {
+    fetch('/api/picture/folder', {
+        method: 'DELETE',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({path: folderPath})
+    }).then(r => r.json()).then(result => {
+        if (result.code === 200) {
+            closePicModal();
+            loadPictureTree();
+        } else {
+            alert(result.message || '删除失败');
+        }
+    });
+}
+
+function triggerImageUpload() {
+    document.getElementById('file-upload-input')?.click();
+}
+
+function handleImageUpload(files) {
+    if (!files || !files.length) return;
+    const imagePath = getImagePath();
+    const targetFolder = currentSelectedFolder || imagePath;
+    const formData = new FormData();
+    formData.append('image_path', imagePath);
+    formData.append('target_folder', targetFolder);
+    for (const f of files) formData.append('files', f);
+
+    fetch('/api/picture/upload', {method: 'POST', body: formData})
+        .then(r => r.json()).then(result => {
+            if (result.code === 200) {
+                if (currentSelectedFolder) {
+                    loadImagesByFolder(currentSelectedFolder);
+                } else {
+                    loadAllImages(imagePath);
+                }
+            } else {
+                alert(result.message || '上传失败');
+            }
+            const el = document.getElementById('file-upload-input');
+            if (el) el.value = '';
+        });
+}
+
+function triggerAttachmentUpload() {
+    showAttachmentModal();
+}
+
+function handleAttachmentUpload(files) {
+    if (!files || !files.length) return;
+    
+    const progressDiv = document.getElementById('upload-progress');
+    const progressFill = document.querySelector('#upload-progress .progress-fill');
+    const progressPercent = document.querySelector('#upload-progress .progress-percent');
+    const progressLabel = document.querySelector('#upload-progress .progress-label');
+    
+    if (progressDiv) {
+        progressDiv.style.display = 'block';
+    }
+    if (progressFill) {
+        progressFill.style.width = '0%';
+    }
+    if (progressPercent) {
+        progressPercent.textContent = '0%';
+    }
+    if (progressLabel) {
+        progressLabel.textContent = '上传中...';
+    }
+    
+    const formData = new FormData();
+    for (const f of files) formData.append('files', f);
+    
+    // 使用XMLHttpRequest来监听上传进度
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/article/upload-attachment', true);
+    
+    xhr.upload.addEventListener('progress', function(e) {
+        if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            if (progressFill) {
+                progressFill.style.width = percent + '%';
+            }
+            if (progressPercent) {
+                progressPercent.textContent = percent + '%';
+            }
+            if (progressLabel) {
+                progressLabel.textContent = `上传中... ${percent}%`;
+            }
+        }
+    });
+    
+    xhr.onload = function() {
+        try {
+            const result = JSON.parse(xhr.responseText);
+            if (result.code === 200) {
+                // 刷新附件列表
+                loadAttachments(1);
+            } else {
+                alert(result.message || '上传失败');
+            }
+        } catch (e) {
+            alert('上传失败，服务器返回无效响应');
+        }
+        
+        // 隐藏进度条
+        if (progressDiv) {
+            progressDiv.style.display = 'none';
+        }
+        
+        const el = document.getElementById('attachment-modal-upload-input');
+        if (el) el.value = '';
+    };
+    
+    xhr.onerror = function() {
+        alert('上传失败，网络错误');
+        
+        // 隐藏进度条
+        if (progressDiv) {
+            progressDiv.style.display = 'none';
+        }
+        
+        const el = document.getElementById('attachment-modal-upload-input');
+        if (el) el.value = '';
+    };
+    
+    xhr.send(formData);
+}
+
+let selectedAttachments = [];
+let currentAttachmentPage = 1;
+
+function showAttachmentModal() {
+    selectedAttachments = [];
+    currentAttachmentPage = 1;
+    
+    let modal = document.getElementById('attachment-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'attachment-modal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content attachment-modal">
+                <div class="modal-header">
+                    <h3>选择附件</h3>
+                    <button class="btn-close" onclick="closeAttachmentModal()"><img src="/static/emoji/Cross mark_3d.png" class="emoji-icon emoji-icon-sm" /></button>
+                </div>
+                <div class="modal-body">
+                    <div class="attachment-toolbar">
+                        <button class="btn btn-secondary" id="btn-upload-attachment" onclick="triggerAttachmentModalUpload()">
+                            <img src="/static/emoji/Cloud upload_3d.png" class="emoji-icon" /> 上传附件
+                        </button>
+                        <input type="file" id="attachment-modal-upload-input" multiple style="display:none;" onchange="handleAttachmentUpload(this.files)">
+                    </div>
+                    <!-- 上传进度条 -->
+                    <div class="upload-progress" id="upload-progress" style="display:none;">
+                        <div class="progress-label">上传中...</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill"></div>
+                        </div>
+                        <div class="progress-percent">0%</div>
+                    </div>
+                    <div class="attachment-list" id="attachment-list">
+                        <div class="loading">加载中...</div>
+                    </div>
+                    <div class="pagination" id="attachment-pagination"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeAttachmentModal()">取消</button>
+                    <button class="btn btn-primary" onclick="insertSelectedAttachments()">插入选中 (<span id="selected-count">0</span>)</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    modal.style.display = 'flex';
+    loadAttachments(1);
+}
+
+function closeAttachmentModal() {
+    const modal = document.getElementById('attachment-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    selectedAttachments = [];
+}
+
+function loadAttachments(page) {
+    currentAttachmentPage = page;
+    
+    fetch(`/api/article/attachments?page=${page}&page_size=20`)
+        .then(r => r.json()).then(result => {
+            if (result.code === 200) {
+                renderAttachmentList(result.data);
+            }
+        });
+}
+
+function renderAttachmentList(data) {
+    const list = document.getElementById('attachment-list');
+    const pagination = document.getElementById('attachment-pagination');
+    const selectedCount = document.getElementById('selected-count');
+    
+    if (!data.attachments || data.attachments.length === 0) {
+        list.innerHTML = '<div class="empty-state"><img src="/static/emoji/Paperclip_3d.png" class="emoji-icon" /><p>暂无附件</p><p class="empty-hint">点击上方按钮上传附件</p></div>';
+        pagination.innerHTML = '';
+        return;
+    }
+    
+    list.innerHTML = `
+        <table class="attachment-table">
+            <thead>
+                <tr>
+                    <th><input type="checkbox" onchange="toggleSelectAllAttachments(this.checked)"></th>
+                    <th>文件名</th>
+                    <th>大小</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${data.attachments.map(att => `
+                    <tr>
+                        <td><input type="checkbox" ${selectedAttachments.includes(att.name) ? 'checked' : ''} onchange="toggleAttachmentSelection('${att.name}', this.checked)"></td>
+                        <td>${att.name}</td>
+                        <td>${formatFileSize(att.size)}</td>
+                        <td>
+                            <button class="btn btn-sm" onclick="insertSingleAttachment('${att.name}')"><img src="/static/emoji/Link_3d.png" class="emoji-icon" /></button>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+    
+    // 渲染分页
+    const total = data.total;
+    const pageSize = data.page_size;
+    const totalPages = Math.ceil(total / pageSize);
+    const currentPage = data.page;
+    
+    if (totalPages > 1) {
+        pagination.innerHTML = `
+            <button class="btn btn-sm ${currentPage <= 1 ? 'disabled' : ''}" onclick="loadAttachments(${currentPage - 1})">上一页</button>
+            <span>第 ${currentPage} / ${totalPages} 页</span>
+            <button class="btn btn-sm ${currentPage >= totalPages ? 'disabled' : ''}" onclick="loadAttachments(${currentPage + 1})">下一页</button>
+        `;
+    } else {
+        pagination.innerHTML = '';
+    }
+    
+    selectedCount.textContent = selectedAttachments.length;
+}
+
+function toggleSelectAllAttachments(checked) {
+    const checkboxes = document.querySelectorAll('#attachment-list input[type="checkbox"]');
+    
+    checkboxes.forEach((cb, index) => {
+        if (index > 0) { // 跳过第一个全选框
+            cb.checked = checked;
+            const row = cb.parentElement.parentElement;
+            const fileName = row.querySelector('td:nth-child(2)').textContent;
+            const idx = selectedAttachments.indexOf(fileName);
+            if (checked && idx === -1) {
+                selectedAttachments.push(fileName);
+            } else if (!checked && idx !== -1) {
+                selectedAttachments.splice(idx, 1);
+            }
+        }
+    });
+    
+    document.getElementById('selected-count').textContent = selectedAttachments.length;
+}
+
+function toggleAttachmentSelection(fileName, checked) {
+    const idx = selectedAttachments.indexOf(fileName);
+    if (checked && idx === -1) {
+        selectedAttachments.push(fileName);
+    } else if (!checked && idx !== -1) {
+        selectedAttachments.splice(idx, 1);
+    }
+    document.getElementById('selected-count').textContent = selectedAttachments.length;
+}
+
+function triggerAttachmentModalUpload() {
+    document.getElementById('attachment-modal-upload-input')?.click();
+}
+
+function insertSingleAttachment(fileName) {
+    const href = `/api/article/attachment?file=${encodeURIComponent(fileName)}`;
+    const link = `<a href="${href}" target="_blank" rel="noopener noreferrer">${fileName}</a>`;
+    insertHTML('\n' + link + '\n');
+}
+
+function insertSelectedAttachments() {
+    if (selectedAttachments.length === 0) return;
+    
+    const links = selectedAttachments.map(fn => {
+        const href = `/api/article/attachment?file=${encodeURIComponent(fn)}`;
+        return `<a href="${href}" target="_blank" rel="noopener noreferrer">${fn}</a>`;
+    }).join('\n');
+    insertHTML('\n' + links + '\n');
+    closeAttachmentModal();
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function toggleToolbarMenu(event) {
+    event.stopPropagation();
+    const dropdown = document.getElementById('toolbar-dropdown');
+    if (!dropdown) return;
+    const isOpen = dropdown.style.display === 'block';
+    _closeAllToolbarMenus();
+    if (!isOpen) dropdown.style.display = 'block';
+}
+
+function _closeAllToolbarMenus() {
+    document.querySelectorAll('.toolbar-dropdown').forEach(d => d.style.display = 'none');
+}
+
+function enterSelectMode() {
+    _closeAllToolbarMenus();
+    pictureSelectMode = true;
+    pictureSelectedPaths.clear();
+    const actions = document.getElementById('select-actions');
+    const btnUpload = document.getElementById('btn-upload');
+    const moreWrap = document.querySelector('.toolbar-more-wrap');
+    if (actions) actions.style.display = 'flex';
+    if (btnUpload) btnUpload.style.display = 'none';
+    if (moreWrap) moreWrap.style.display = 'none';
+    updateSelectedCount();
+    renderImages(currentImages);
+}
+
+function toggleSelectMode() {
+    pictureSelectMode = !pictureSelectMode;
+    pictureSelectedPaths.clear();
+    const actions = document.getElementById('select-actions');
+    const btnUpload = document.getElementById('btn-upload');
+    const moreWrap = document.querySelector('.toolbar-more-wrap');
+    if (pictureSelectMode) {
+        if (actions) actions.style.display = 'flex';
+        if (btnUpload) btnUpload.style.display = 'none';
+        if (moreWrap) moreWrap.style.display = 'none';
+        updateSelectedCount();
+    } else {
+        if (actions) actions.style.display = 'none';
+        if (btnUpload) btnUpload.style.display = '';
+        if (moreWrap) moreWrap.style.display = '';
+        document.getElementById('select-all-cb').checked = false;
+    }
+    renderImages(currentImages);
+}
+
+function cancelSelectMode() {
+    pictureSelectMode = false;
+    pictureSelectedPaths.clear();
+    const actions = document.getElementById('select-actions');
+    const btnUpload = document.getElementById('btn-upload');
+    const moreWrap = document.querySelector('.toolbar-more-wrap');
+    if (actions) actions.style.display = 'none';
+    if (btnUpload) btnUpload.style.display = '';
+    if (moreWrap) moreWrap.style.display = '';
+    renderImages(currentImages);
+}
+
+function toggleImageSelect(index, event) {
+    event.stopPropagation();
+    const img = currentImages[index];
+    if (!img) return;
+    if (pictureSelectedPaths.has(img.path)) {
+        pictureSelectedPaths.delete(img.path);
+    } else {
+        pictureSelectedPaths.add(img.path);
+    }
+    updateSelectedCount();
+    renderImages(currentImages);
+}
+
+function toggleSelectAll(checked) {
+    if (checked) {
+        currentImages.forEach(img => pictureSelectedPaths.add(img.path));
+    } else {
+        pictureSelectedPaths.clear();
+    }
+    updateSelectedCount();
+    renderImages(currentImages);
+}
+
+function updateSelectedCount() {
+    const el = document.getElementById('selected-count');
+    if (el) el.textContent = pictureSelectedPaths.size;
+}
+
+function confirmDeleteSelected() {
+    if (pictureSelectedPaths.size === 0) return;
+    const count = pictureSelectedPaths.size;
+    showPicModal(`
+        <div class="pic-modal-header"><h3>确认删除</h3><button class="btn-close" onclick="closePicModal()"><img src="/static/emoji/Cross mark_3d.png" class="emoji-icon emoji-icon-sm" /></button></div>
+        <div class="pic-modal-body" style="text-align:center;padding:24px;">
+            <img src="/static/emoji/Warning sign_3d.png" style="width:36px;height:36px;color:#e6a23c;margin-bottom:12px;display:block;" />
+            <p>确定要删除选中的 <strong>${count}</strong> 张图片吗？</p>
+            <p style="color:#909399;font-size:13px;">此操作不可恢复。</p>
+        </div>
+        <div class="pic-modal-footer">
+            <button class="toolbar-btn" onclick="closePicModal()">取消</button>
+            <button class="toolbar-btn toolbar-btn-danger" onclick="doDeleteSelected()">确认删除</button>
+        </div>
+    `);
+}
+
+function doDeleteSelected() {
+    const imagePath = getImagePath();
+    fetch('/api/picture/delete-images', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({image_path: imagePath, paths: Array.from(pictureSelectedPaths)})
+    }).then(r => r.json()).then(result => {
+        if (result.code === 200) {
+            closePicModal();
+            cancelSelectMode();
+            if (currentSelectedFolder) {
+                loadImagesByFolder(currentSelectedFolder);
+            } else {
+                loadAllImages(imagePath);
+            }
+        } else {
+            alert(result.message || '删除失败');
+        }
+    });
+}

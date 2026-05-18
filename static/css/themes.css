@@ -1,0 +1,71 @@
+/**
+ * 主题样式
+ */
+
+/* Pink Theme */
+:root.theme-pink {
+    --color-primary: #DB2777;
+    --color-primary-light: #EC4899;
+    --color-primary-lighter: #FBCFE8;
+    --color-primary-lightest: #FDF2F8;
+    --color-primary-dark: #BE185D;
+    --color-primary-50: #FDF2F8;
+    --color-on-primary: #FFFFFF;
+    
+    --color-accent: #F59E0B;
+    --color-accent-light: #FB923C;
+    --color-destructive: #DC2626;
+    --color-success: #059669;
+    --color-warning: #D97706;
+    --color-info: #0284C7;
+    
+    --color-foreground: #831843;
+    --color-foreground-secondary: #9D5C6E;
+}
+
+/* Dark Mode - Teal Theme */
+:root.theme-dark,
+:root.theme-dark-teal {
+    --color-primary: #2DD4BF;
+    --color-primary-light: #5EEAD4;
+    --color-primary-lighter: #99F6E4;
+    --color-primary-lightest: rgba(45, 212, 191, 0.1);
+    --color-primary-dark: #14B8A6;
+    --color-primary-50: rgba(45, 212, 191, 0.05);
+    --color-on-primary: #134E4A;
+    
+    --color-accent: #FB923C;
+    --color-accent-light: #FDBA74;
+    --color-destructive: #F87171;
+    --color-success: #34D399;
+    --color-warning: #FBBF24;
+    --color-info: #60A5FA;
+    
+    --color-background: #0F172A;
+    --color-surface: #1E293B;
+    --color-foreground: #F1F5F9;
+    --color-foreground-secondary: #CBD5E1;
+    --color-muted: #64748B;
+    --color-border: #334155;
+    --color-border-light: #1E293B;
+}
+
+/* Dark Mode - Pink Theme */
+:root.theme-dark.theme-pink,
+:root.theme-dark-pink {
+    --color-primary: #F472B6;
+    --color-primary-light: #FB7185;
+    --color-primary-lighter: #FDA4AF;
+    --color-primary-lightest: rgba(244, 114, 182, 0.1);
+    --color-primary-dark: #EC4899;
+    --color-primary-50: rgba(244, 114, 182, 0.05);
+    --color-on-primary: #831843;
+
+    --color-background: #1A0A14;
+    --color-surface: #2D1225;
+    --color-foreground: #FDF2F8;
+    --color-foreground-secondary: #D1A3B8;
+    --color-muted: #A88B9A;
+    --color-border: #3D1A30;
+    --color-border-light: #2D1225;
+}

@@ -1,0 +1,147 @@
+/**
+ * 侧边栏组件样式
+ */
+
+.aside-item-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    background: var(--color-surface);
+    border-right: 1px solid var(--color-border-light);
+    padding: 8px 0;
+}
+
+.item-menu-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding-top: 8px;
+}
+
+.item-menu {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+    color: var(--color-muted);
+    position: relative;
+    gap: 2px;
+}
+
+.item-menu span {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+}
+
+.item-menu .menu-icon {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+}
+
+.item-menu i {
+    font-size: 18px;
+}
+
+.item-menu:hover {
+    background: var(--color-primary-lightest);
+    color: var(--color-primary);
+}
+
+.item-menu.is-active {
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+    box-shadow: var(--shadow-md);
+}
+
+.item-user {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.top-user {
+    padding: 12px 0 16px;
+}
+
+.user-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid var(--color-primary-lighter);
+    transition: border-color var(--transition-fast);
+}
+
+.user-avatar:hover {
+    border-color: var(--color-primary);
+}
+
+.user-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.user-avatar-bottom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 8px 0;
+}
+
+.user-avatar-bottom img {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+    opacity: 0.6;
+}
+
+.user-avatar-bottom .user-name {
+    font-size: 9px;
+    color: var(--color-muted);
+    font-weight: 500;
+}
+
+.item-setting {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    color: var(--color-muted);
+    transition: all var(--transition-fast);
+    border-top: 1px solid var(--color-border-light);
+    margin-top: auto;
+    padding-top: 8px;
+    margin-bottom: 8px;
+}
+
+.item-setting .menu-icon {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+}
+
+.item-setting i {
+    font-size: 18px;
+}
+
+.item-setting:hover {
+    color: var(--color-primary);
+    background: var(--color-primary-lightest);
+}
