@@ -194,6 +194,7 @@ function loadWikiList() {
 
 function renderWikiList(items, type) {
     var list = document.getElementById('wiki-list');
+    if (!list) return;
     if (!items || items.length === 0) {
         var msgs = {concepts: '暂无概念页面，请先编译', sources: '文章目录下没有 .md 文件', queries: '暂无查询记录'};
         list.innerHTML = '<div class="wiki-list-empty">' + (msgs[type] || '') + '</div>';
@@ -314,21 +315,24 @@ function showCompileConfirm(type) {
     var option = compileOptions[type];
 
     var dd = document.getElementById('sidebar-dropdown');
-    if (dd) dd.classList.remove('show');    
-    document.getElementById('compile-confirm-title').textContent = '确认' + option.title;
-    document.getElementById('compile-description').textContent = option.description;
-    
+    if (dd) dd.classList.remove('show');
+    var titleEl = document.getElementById('compile-confirm-title');
+    var descEl = document.getElementById('compile-description');
     var prosList = document.getElementById('compile-pros');
-    prosList.innerHTML = option.pros.map(p => '<li>' + p + '</li>').join('');
-    
     var consList = document.getElementById('compile-cons');
+    var modal = document.getElementById('compile-confirm-modal');
+    if (!titleEl || !descEl || !prosList || !consList || !modal) return;
+
+    titleEl.textContent = '确认' + option.title;
+    descEl.textContent = option.description;
+    prosList.innerHTML = option.pros.map(p => '<li>' + p + '</li>').join('');
     consList.innerHTML = option.cons.map(c => '<li>' + c + '</li>').join('');
-    
-    document.getElementById('compile-confirm-modal').style.display = 'flex';
+    modal.style.display = 'flex';
 }
 
 function closeCompileConfirmDialog() {
-    document.getElementById('compile-confirm-modal').style.display = 'none';
+    var modal = document.getElementById('compile-confirm-modal');
+    if (modal) modal.style.display = 'none';
     currentCompileType = '';
 }
 
@@ -336,6 +340,7 @@ function confirmCompile() {
     if (!currentCompileType) return;
     
     var btn = document.getElementById('compile-confirm-btn');
+    if (!btn) return;
     btn.disabled = true;
     btn.textContent = '执行中...';
     
@@ -364,7 +369,7 @@ function confirmCompile() {
         if (res.data.status === 'already_running') {
             alert('编译正在进行中，请稍候');
         } else {
-            document.getElementById('compile-btn').innerHTML = '<img src="/static/emoji/Clockwise vertical arrows_3d.png" class="emoji-icon emoji-spin" />';
+            document.getElementById('compile-btn').innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>';
             pollCompileStatus();
         }
     })
@@ -384,11 +389,13 @@ function pollCompileStatus() {
         var textEl = document.getElementById('compile-status-text');
         var btn = document.getElementById('compile-btn');
 
+        if (!el || !textEl || !btn) return;
+
         if (s.running) {
             el.style.display = 'flex';
             textEl.textContent = s.progress || '编译中...';
             btn.disabled = true;
-            btn.innerHTML = '<img src="/static/emoji/Clockwise vertical arrows_3d.png" class="emoji-icon emoji-spin" />';
+            btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>';
             if (currentWikiTab === 'sources') loadWikiList();
             setTimeout(pollCompileStatus, 2000);
         } else {

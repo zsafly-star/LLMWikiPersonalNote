@@ -41,6 +41,20 @@ def api_index():
     }
 
 with app.app_context():
+    import os
+    # 自动创建必要的目录
+    directories = [
+        app.config['ARTICLE_PATH'],
+        app.config['IMAGE_PATH'],
+        app.config['ATTACHMENT_PATH'],
+        app.config['WIKI_PATH'],
+        app.config['INSTANCE_PATH']
+    ]
+    for directory in directories:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+            print(f"Created directory: {directory}")
+    
     db.create_all()
 
 if __name__ == '__main__':

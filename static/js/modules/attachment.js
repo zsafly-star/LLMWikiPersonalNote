@@ -27,7 +27,7 @@ function showAttachmentModal() {
                 <div class="modal-body">
                     <div class="attachment-toolbar">
                         <button class="btn btn-secondary" id="btn-upload-attachment" onclick="triggerAttachmentModalUpload()">
-                            <img src="/static/emoji/Cloud upload_3d.png" class="emoji-icon" /> 上传附件
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 16.9A5 5 0 0 0 18 7h-1.26a8 8 0 1 0-11.62 9"></path><polyline points="13 11 9 17 15 17 11 23"></polyline></svg> 上传附件
                         </button>
                         <input type="file" id="attachment-modal-upload-input" multiple style="display:none;" onchange="handleAttachmentUpload(this.files)">
                     </div>
@@ -107,7 +107,8 @@ function renderAttachmentList(data) {
                         <td>${att.name}</td>
                         <td>${formatFileSize(att.size)}</td>
                         <td>
-                            <button class="btn btn-sm" onclick="insertSingleAttachment('${att.name}')"><img src="/static/emoji/Link_3d.png" class="emoji-icon" /></button>
+                            <button class="btn btn-sm" onclick="insertSingleAttachment('${att.name}')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteAttachment('${att.name}')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
                         </td>
                     </tr>
                 `).join('')}
@@ -257,6 +258,27 @@ function insertSingleAttachment(fileName) {
     const href = `/api/article/attachment?file=${encodeURIComponent(fileName)}`;
     const link = `<a href="${href}" target="_blank" rel="noopener noreferrer">${fileName}</a>`;
     insertHTML('\n' + link + '\n');
+}
+
+// 删除附件
+function deleteAttachment(fileName) {
+    if (confirm(`确定要删除附件 "${fileName}" 吗？`)) {
+        fetch('/api/article/attachment', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ file: fileName })
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.code === 200) {
+                loadAttachments(currentAttachmentPage);
+                alert('删除成功');
+            } else {
+                alert(res.message || '删除失败');
+            }
+        })
+        .catch(() => alert('删除失败'));
+    }
 }
 
 // 插入选中的附件

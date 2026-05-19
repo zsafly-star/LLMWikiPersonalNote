@@ -170,7 +170,7 @@ function wrapSelection(prefix, suffix) {
     textarea.selectionEnd = start + newText.length;
     textarea.focus();
     
-    // 触发输入事件
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
     handleEditorInput();
 }
 
@@ -188,7 +188,8 @@ function insertHTML(html) {
     textarea.selectionStart = textarea.selectionEnd = start + html.length;
     textarea.focus();
     
-    // 触发输入事件
+    // 手动触发input事件，确保编辑器预览能更新
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
     handleEditorInput();
 }
 
@@ -196,6 +197,241 @@ function insertHTML(html) {
 function insertImage(url, alt = '') {
     const markdown = `![${alt || '图片'}](${url})`;
     insertHTML('\n' + markdown + '\n');
+}
+
+// 当前选中的图片文件夹路径
+let currentPickerFolderPath = '';
+
+// 显示图片选择器
+function showImagePicker() {
+    // 创建图片选择器弹窗
+    const overlay = document.createElement('div');
+    overlay.className = 'image-picker-overlay';
+    overlay.id = 'image-picker-overlay';
+    overlay.innerHTML = `
+        <div class="image-picker-modal">
+            <div class="image-picker-header">
+                <h3>选择图片</h3>
+                <button class="btn-close" onclick="closeImagePicker()">
+                    <img src="/static/emoji/Cross mark_3d.png" class="emoji-icon emoji-icon-sm" />
+                </button>
+            </div>
+            <div class="image-picker-body">
+                <div class="image-picker-sidebar">
+                    <div class="picker-sidebar-header">
+                <button class="sidebar-item sidebar-all" data-path="" onclick="loadPickerImages('')">
+                    <img src="/static/emoji/Open file folder_3d.png" class="emoji-icon emoji-icon-sm" />
+                    <span>全部图片</span>
+                </button>
+            </div>
+                    <div class="picker-tree" id="picker-tree">
+                        <div class="tree-loading">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="image-picker-content">
+                    <div class="picker-search-box">
+                        <img src="/static/emoji/Magnifying glass tilted right_3d.png" class="emoji-icon emoji-icon-sm" />
+                        <input type="text" id="picker-search-input" placeholder="搜索图片..." oninput="filterPickerImages()" />
+                    </div>
+                    <div class="image-picker-grid" id="picker-image-grid">
+                        <div class="image-picker-loading">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                            <span>加载中...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="image-picker-footer">
+                <button class="toolbar-btn" onclick="closeImagePicker()">取消</button>
+                <button class="toolbar-btn toolbar-btn-primary" id="image-picker-confirm" disabled>插入选中</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.classList.add('show');
+
+    // 点击遮罩关闭
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) {
+            closeImagePicker();
+        }
+    });
+
+    // 加载目录树和图片列表
+    loadPickerTree();
+    loadPickerImages('');
+}
+
+// 加载目录树
+function loadPickerTree() {
+    const treeContainer = document.getElementById('picker-tree');
+    fetch('/api/picture/tree')
+        .then(response => response.json())
+        .then(result => {
+            if (result.code === 200 && result.data) {
+                treeContainer.innerHTML = renderPickerTree(result.data);
+                bindPickerTreeEvents();
+            } else {
+                treeContainer.innerHTML = '<div class="tree-empty" style="padding: 12px; text-align: center; color: var(--color-muted);">暂无文件夹</div>';
+            }
+        })
+        .catch(() => {
+            treeContainer.innerHTML = '<div class="tree-empty" style="padding: 12px; text-align: center; color: var(--color-muted);">加载失败</div>';
+        });
+}
+
+// 渲染目录树
+function renderPickerTree(nodes) {
+    if (!nodes || nodes.length === 0) return '';
+    
+    let html = '<ul class="picker-tree-list">';
+    nodes.forEach(node => {
+        // 只渲染文件夹，忽略图片文件
+        if (node.type !== 'folder') return;
+        
+        const iconUrl = node.icon ? `/api/article/emoji/${encodeURIComponent(node.icon)}` : '/static/emoji/File folder_3d.png';
+        html += `
+            <li class="picker-tree-item">
+                <div class="tree-item-row" data-path="${escapeHtml(node.path)}">
+                    <img src="${iconUrl}" class="tree-item-icon" onerror="this.src='/static/emoji/File folder_3d.png'" />
+                    <span class="tree-item-name">${escapeHtml(node.name)}</span>
+                </div>
+                ${node.children && node.children.length > 0 ? `<ul class="picker-tree-children">${renderPickerTree(node.children)}</ul>` : ''}
+            </li>
+        `;
+    });
+    html += '</ul>';
+    return html;
+}
+
+// 绑定目录树事件
+function bindPickerTreeEvents() {
+    const items = document.querySelectorAll('.tree-item-row');
+    items.forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const path = this.getAttribute('data-path');
+            loadPickerImages(path);
+            
+            // 更新选中状态
+            document.querySelectorAll('.sidebar-item, .tree-item-row').forEach(el => el.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+}
+
+// 加载图片列表
+function loadPickerImages(folderPath) {
+    currentPickerFolderPath = folderPath;
+    const grid = document.getElementById('picker-image-grid');
+    const confirmBtn = document.getElementById('image-picker-confirm');
+    
+    // 更新侧边栏选中状态
+    document.querySelectorAll('.sidebar-item, .tree-item-row').forEach(el => el.classList.remove('active'));
+    if (folderPath) {
+        document.querySelector(`.tree-item-row[data-path="${folderPath}"]`)?.classList.add('active');
+    } else {
+        document.querySelector('.sidebar-all')?.classList.add('active');
+    }
+    
+    // 禁用确认按钮
+    confirmBtn.disabled = true;
+    
+    // 构建URL：文件夹路径作为image_path参数传递
+    let url = '/api/picture/images';
+    if (folderPath) {
+        url += `?image_path=${encodeURIComponent(folderPath)}`;
+    }
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(result => {
+            if (!result || result.code !== 200 || !result.data) {
+                grid.innerHTML = `
+                    <div class="image-picker-empty">
+                        <img src="/static/emoji/Image_3d.png" class="emoji-icon" />
+                        <span>暂无图片</span>
+                    </div>
+                `;
+                return;
+            }
+
+            renderPickerImages(result.data);
+        })
+        .catch(() => {
+            grid.innerHTML = `
+                <div class="image-picker-empty">
+                    <img src="/static/emoji/Alert triangle_3d.png" class="emoji-icon" />
+                    <span>加载失败</span>
+                </div>
+            `;
+        });
+}
+
+// 渲染图片列表
+function renderPickerImages(images) {
+    const grid = document.getElementById('picker-image-grid');
+    let html = '';
+    images.forEach(img => {
+        // 使用相对路径格式：只传递img参数，依赖后端默认路径配置
+        // 这样项目移动时仍然能正确加载图片
+        const relativePath = `/api/picture/image?img=${encodeURIComponent(img.path)}`;
+        
+        html += `
+            <div class="image-picker-item" data-url="${relativePath}" data-name="${img.name}">
+                <img src="${relativePath}" alt="${img.name}" />
+            </div>
+        `;
+    });
+    grid.innerHTML = html;
+    bindPickerImageEvents();
+}
+
+// 绑定图片选择事件
+function bindPickerImageEvents() {
+    const items = document.querySelectorAll('.image-picker-item');
+    const confirmBtn = document.getElementById('image-picker-confirm');
+    let selectedUrl = null;
+
+    items.forEach(item => {
+        item.addEventListener('click', function() {
+            items.forEach(i => i.classList.remove('selected'));
+            this.classList.add('selected');
+            selectedUrl = this.getAttribute('data-url');
+            confirmBtn.disabled = false;
+        });
+    });
+
+    confirmBtn.onclick = function() {
+        if (selectedUrl) {
+            const name = document.querySelector('.image-picker-item.selected')?.getAttribute('data-name') || '';
+            insertImage(selectedUrl, name.replace(/\.[^/.]+$/, ''));
+            closeImagePicker();
+        }
+    };
+}
+
+// 过滤图片
+function filterPickerImages() {
+    const searchInput = document.getElementById('picker-search-input');
+    const keyword = searchInput.value.toLowerCase().trim();
+    const items = document.querySelectorAll('.image-picker-item');
+    
+    items.forEach(item => {
+        const name = item.getAttribute('data-name').toLowerCase();
+        item.style.display = keyword === '' || name.includes(keyword) ? 'block' : 'none';
+    });
+}
+
+// 关闭图片选择器
+function closeImagePicker() {
+    const overlay = document.getElementById('image-picker-overlay');
+    if (overlay) {
+        overlay.remove();
+    }
+    currentPickerFolderPath = '';
 }
 
 // 插入 Markdown 格式
@@ -214,6 +450,8 @@ function insertMarkdown(prefix, suffix) {
     const newCursorPos = start + prefix.length + selectedText.length;
     textarea.setSelectionRange(newCursorPos, newCursorPos);
     textarea.focus();
+    
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 // 插入链接
@@ -233,4 +471,5 @@ function insertLink() {
     textarea.value = newText;
     
     textarea.focus();
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
 }

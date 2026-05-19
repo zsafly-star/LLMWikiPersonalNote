@@ -18,14 +18,14 @@
                         </button>
                         <div class="sidebar-dropdown-sep"></div>
                         <button onclick="refreshDocTree()">
-                            <img src="/static/emoji/Clockwise vertical arrows_3d.png" class="emoji-icon emoji-icon-sm" /> 刷新
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> 刷新
                         </button>
                     </div>
                 </div>
             </div>
             <div class="sidebar-tree" id="doc-tree">
                 <div class="tree-loading" id="tree-loading">
-                    <img src="/static/emoji/Clockwise vertical arrows_3d.png" class="emoji-icon emoji-icon-sm emoji-spin" />
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
                     <span>加载中...</span>
                 </div>
                 <div class="tree-empty" id="tree-empty" style="display: none;">
@@ -87,7 +87,10 @@
 {% endblock %}
 
 {% block scripts %}
-    <script src="{{ url_for('static', filename='js/modules/article.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/modules/editor.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/modules/attachment.js') }}"></script>
+<script>
+if (typeof loadDocTree === 'function') {
+    loadArticleRootPath();
+    loadDocTree();
+}
+</script>
 {% endblock %}

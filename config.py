@@ -9,7 +9,6 @@ _DEFAULT_RESOURCE_PATH = os.path.join(_PROJECT_ROOT, 'resource')
 
 class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///./sseditor.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     UPLOAD_FOLDER = 'static/uploads'
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
@@ -18,6 +17,10 @@ class Config:
     ARTICLE_PATH = os.path.join(RESOURCE_BASE_PATH, 'article')
     IMAGE_PATH = os.path.join(RESOURCE_BASE_PATH, 'img')
     ATTACHMENT_PATH = os.path.join(RESOURCE_BASE_PATH, 'attachments')
+    WIKI_PATH = os.path.join(RESOURCE_BASE_PATH, 'wiki')
+    INSTANCE_PATH = os.path.join(RESOURCE_BASE_PATH, 'instance')
+    
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(INSTANCE_PATH, 'sseditor.db')
 
 
 class LLMConfig:

@@ -30,7 +30,8 @@ def get_picture_tree():
 
 @picture_bp.route('/api/picture/images', methods=['GET'])
 def get_picture_images():
-    image_path = _resolve_image_path(request.args.get('image_path', ''))
+    requested_path = request.args.get('image_path', '')
+    image_path = _resolve_image_path(requested_path)
 
     if not os.path.isdir(image_path):
         return error_response('路径不存在或不是目录', 404)
@@ -41,7 +42,10 @@ def get_picture_images():
             ext = os.path.splitext(file)[1].lower()
             if ext in ALLOWED_IMAGE_EXTENSIONS:
                 full_path = os.path.join(root, file)
-                relative_path = os.path.relpath(full_path, image_path)
+                # 始终使用相对于 Config.IMAGE_PATH 的路径，确保前端请求图片时能正确找到
+                relative_path = os.path.relpath(full_path, Config.IMAGE_PATH)
+                # 将路径统一转换为正斜杠格式，便于前端处理
+                relative_path = relative_path.replace('\\', '/')
                 images.append({
                     'name': file,
                     'path': relative_path,
@@ -60,13 +64,14 @@ def get_picture_image():
     image_path = _resolve_image_path(request.args.get('image_path', ''))
     img = request.args.get('img', '')
 
-    if not image_path or not img:
+    if not img:
         return error_response('缺少参数')
 
     if '..' in img:
         return error_response('无效的图片路径')
 
-    img_path_parts = img.split('/')
+    # 同时处理正斜杠和反斜杠路径
+    img_path_parts = img.replace('\\', '/').split('/')
     full_path = os.path.join(image_path, *img_path_parts)
 
     full_path_norm = os.path.normpath(os.path.abspath(full_path))

@@ -10,32 +10,77 @@ let currentPreviewIndex = 0;
 let pictureSelectMode = false;
 let pictureSelectedPaths = new Set();
 let treeOriginalOrder = null;
+let currentViewMode = 'grid';
 
-// 文件夹图标选项
+// 文件夹图标选项（32个可用图标）
 const pictureFolderIcons = [
-    'Open file folder', 'File folder', 'Folder', 'Folder tree',
-    'Briefcase', 'Package', 'Archive', 'Box'
+    'Open file folder', 'File folder', 'Briefcase', 'Package',
+    'Card file box', 'File cabinet', 'Books', 'Bookmark tabs',
+    'Notebook', 'Open book', 'Closed book', 'Spiral notepad',
+    'Card index', 'Card index dividers', 'Credit card', 'Identification card',
+    'Envelope', 'Red envelope', 'Incoming envelope', 'Envelope with arrow',
+    'Backpack', 'Handbag', 'Shopping bags', 'Clutch bag',
+    'Money bag', 'Basket', 'Bucket', 'Bento box',
+    'Beverage box', 'Takeout box', 'Toolbox', 'Wastebasket'
 ];
 
 // 加载图片页面
 function loadPicturePage() {
-    loadPictureTree();
-    loadAllImages();
+    initImagePath(function() {
+        loadPictureTree();
+        loadAllImages();
+    });
+}
+
+function initImagePath(callback) {
+    if (imagePath) {
+        if (callback) callback();
+        return;
+    }
+    fetch('/api/article/init-paths', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({})
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(result) {
+        if (result.code === 200 && result.data && result.data.img_path) {
+            imagePath = result.data.img_path;
+        }
+        if (callback) callback();
+    })
+    .catch(function() {
+        if (callback) callback();
+    });
 }
 
 // 加载图片目录树
 function loadPictureTree() {
-    const imagePath = getImagePath();
-    fetch(`/api/picture/folders?image_path=${encodeURIComponent(imagePath)}`)
+    const treeContainer = document.querySelector('.picture-tree-root');
+    if (!treeContainer) return;
+
+    fetch('/api/picture/tree')
         .then(response => response.json())
         .then(result => {
             if (result.code === 200 && result.data) {
-                renderPictureTree(result.data, document.querySelector('.picture-tree-root'));
+                renderPictureTree(result.data, treeContainer);
                 bindPictureTreeEvents();
+            } else {
+                treeContainer.innerHTML = `
+                    <div class="tree-empty">
+                        <img src="/static/emoji/Open file folder_3d.png" class="emoji-icon" />
+                        <span>${result?.message || '该路径下没有图片'}</span>
+                    </div>
+                `;
             }
         })
         .catch(() => {
-            // 忽略错误
+            treeContainer.innerHTML = `
+                <div class="tree-empty">
+                    <img src="/static/emoji/Open file folder_3d.png" class="emoji-icon" />
+                    <span>加载失败，请检查路径配置</span>
+                </div>
+            `;
         });
 }
 
@@ -87,17 +132,75 @@ function bindPictureTreeEvents() {
     const treeItems = document.querySelectorAll('.picture-tree-item');
     treeItems.forEach(item => {
         item.addEventListener('click', function(event) {
-            if (event.target.closest('.tree-item-menu')) return;
-            
+            if (event.target.closest('.tree-item-menu')) {
+                showPictureTreeMenu(event, this.dataset.path);
+                return;
+            }
+
             const path = this.dataset.path;
-            
+
             document.querySelectorAll('.picture-tree-item').forEach(i => i.classList.remove('active'));
             this.classList.add('active');
-            
+
             currentSelectedFolder = path;
             const btnUpload = document.getElementById('btn-upload');
             if (btnUpload) btnUpload.style.display = '';
             loadImagesByFolder(path);
+        });
+    });
+
+    bindViewToggle();
+}
+
+// 显示图片树菜单
+function showPictureTreeMenu(event, folderPath) {
+    event.stopPropagation();
+    _closeAllMenus();
+
+    let menu = document.getElementById('tree-item-dd');
+    if (menu) menu.remove();
+
+    menu = document.createElement('div');
+    menu.id = 'tree-item-dd';
+    menu.className = 'tree-item-dropdown show';
+
+    const editBtn = document.createElement('button');
+    editBtn.innerHTML = '<img src="/static/emoji/Pencil_3d.png" class="emoji-icon" /> 编辑图标';
+    editBtn.addEventListener('click', function() {
+        showEditFolderModal(folderPath);
+    });
+    menu.appendChild(editBtn);
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.innerHTML = '<img src="/static/emoji/Wastebasket_3d.png" class="emoji-icon" /> 删除文件夹';
+    deleteBtn.addEventListener('click', function() {
+        confirmDeleteFolder(folderPath);
+    });
+    menu.appendChild(deleteBtn);
+
+    document.body.appendChild(menu);
+
+    const rect = menu.getBoundingClientRect();
+    let left = event.clientX;
+    let top = event.clientY;
+    if (left + rect.width > window.innerWidth - 8) left = window.innerWidth - rect.width - 8;
+    if (top + rect.height > window.innerHeight - 8) top = window.innerHeight - rect.height - 8;
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+}
+
+// 绑定视图切换按钮
+function bindViewToggle() {
+    const viewBtns = document.querySelectorAll('.view-btn');
+    viewBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const view = this.dataset.view;
+            if (view === currentViewMode) return;
+
+            currentViewMode = view;
+            viewBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            renderImages(currentImages);
         });
     });
 }
@@ -222,9 +325,9 @@ function loadImagesByFolder(folderPath) {
 function renderImages(images) {
     const gridContainer = document.getElementById('image-grid');
     const countEl = document.getElementById('image-count');
-    
+
     if (!gridContainer) return;
-    
+
     if (!images || images.length === 0) {
         gridContainer.innerHTML = `
             <div class="empty-state">
@@ -236,36 +339,69 @@ function renderImages(images) {
         if (countEl) countEl.textContent = '0';
         return;
     }
-    
+
     if (countEl) countEl.textContent = String(images.length);
-    
-    let html = '<div class="image-grid">';
-    
-    images.forEach((img, index) => {
-        const size = formatFileSize(img.size);
-        const date = formatDate(img.modified);
-        const modeClass = pictureSelectMode ? ' select-mode' : '';
-        const selClass = pictureSelectMode && pictureSelectedPaths.has(img.path) ? ' selected' : '';
-        const clickHandler = pictureSelectMode
-            ? `onclick="toggleImageSelect(${index}, event)"`
-            : `onclick="showImagePreview(currentImages, ${index})"`;
-        
+
+    if (currentViewMode === 'list') {
+        let html = '<div class="image-list">';
         html += `
-            <div class="image-card${modeClass}${selClass}" data-index="${index}" ${clickHandler}>
-                <div class="image-preview">
-                    <img src="${img.url}" alt="${img.name}" loading="lazy">
-                    ${pictureSelectMode ? `<span class="image-check"><img src="/static/emoji/Check mark_3d.png" class="emoji-icon" /></span>` : ''}
-                </div>
-                <div class="image-info">
-                    <span class="image-name">${escapeHtml(img.name)}</span>
-                    <span class="image-meta">${size} · ${date}</span>
-                </div>
+            <div class="image-list-header">
+                <span class="list-col-name">名称</span>
+                <span class="list-col-size">大小</span>
+                <span class="list-col-date">修改时间</span>
             </div>
         `;
-    });
-    
-    html += '</div>';
-    gridContainer.innerHTML = html;
+        images.forEach((img, index) => {
+            const size = formatFileSize(img.size);
+            const date = formatDate(img.modified);
+            const modeClass = pictureSelectMode ? ' select-mode' : '';
+            const selClass = pictureSelectMode && pictureSelectedPaths.has(img.path) ? ' selected' : '';
+            const clickHandler = pictureSelectMode
+                ? `onclick="toggleImageSelect(${index}, event)"`
+                : `onclick="showImagePreview(currentImages, ${index})"`;
+
+            html += `
+                <div class="image-list-item${modeClass}${selClass}" data-index="${index}" ${clickHandler}>
+                    <span class="list-col-name">
+                        <img src="${img.url}" alt="${img.name}" class="list-thumb" loading="lazy">
+                        <span class="list-name">${escapeHtml(img.name)}</span>
+                    </span>
+                    <span class="list-col-size">${size}</span>
+                    <span class="list-col-date">${date}</span>
+                </div>
+            `;
+        });
+        html += '</div>';
+        gridContainer.innerHTML = html;
+    } else {
+        let html = '<div class="image-grid">';
+
+        images.forEach((img, index) => {
+            const size = formatFileSize(img.size);
+            const date = formatDate(img.modified);
+            const modeClass = pictureSelectMode ? ' select-mode' : '';
+            const selClass = pictureSelectMode && pictureSelectedPaths.has(img.path) ? ' selected' : '';
+            const clickHandler = pictureSelectMode
+                ? `onclick="toggleImageSelect(${index}, event)"`
+                : `onclick="showImagePreview(currentImages, ${index})"`;
+
+            html += `
+                <div class="image-card${modeClass}${selClass}" data-index="${index}" ${clickHandler}>
+                    <div class="image-preview">
+                        <img src="${img.url}" alt="${img.name}" loading="lazy">
+                        ${pictureSelectMode ? `<span class="image-check"><img src="/static/emoji/Check mark_3d.png" class="emoji-icon" /></span>` : ''}
+                    </div>
+                    <div class="image-info">
+                        <span class="image-name">${escapeHtml(img.name)}</span>
+                        <span class="image-meta">${size} · ${date}</span>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        gridContainer.innerHTML = html;
+    }
 }
 
 // 显示图片预览弹窗
@@ -523,6 +659,29 @@ function showEditFolderModal(folderPath) {
     content.querySelector('#ef-close').addEventListener('click', closePicModal);
     content.querySelector('#ef-cancel').addEventListener('click', closePicModal);
     content.querySelector('#ef-submit').addEventListener('click', doUpdateFolderIcon);
+    
+    // 绑定图标选择器点击事件
+    const efIconPreview = document.getElementById('ef-icon-preview');
+    const efIconDropdown = document.getElementById('ef-icon-dropdown');
+    if (efIconPreview && efIconDropdown) {
+        efIconPreview.addEventListener('click', function(event) {
+            event.stopPropagation();
+            efIconDropdown.classList.toggle('show');
+            if (efIconDropdown.classList.contains('show')) {
+                // 计算并设置下拉菜单位置
+                const rect = efIconPreview.getBoundingClientRect();
+                efIconDropdown.style.left = `${rect.left}px`;
+                efIconDropdown.style.top = `${rect.bottom + 8}px`;
+            }
+        });
+    }
+    
+    // 点击其他地方关闭图标选择器
+    document.addEventListener('click', function closeEfIconDropdown() {
+        efIconDropdown?.classList.remove('show');
+        document.removeEventListener('click', closeEfIconDropdown);
+    });
+    
     renderEditIconGrid();
     overlay.classList.add('show');
 }
@@ -606,6 +765,29 @@ function showNewFolderModal() {
     content.querySelector('#nf-close').addEventListener('click', closePicModal);
     content.querySelector('#nf-cancel').addEventListener('click', closePicModal);
     content.querySelector('#nf-submit').addEventListener('click', doCreateFolder);
+    
+    // 绑定图标选择器点击事件
+    const iconPreview = document.getElementById('pic-icon-preview');
+    const iconDropdown = document.getElementById('pic-icon-dropdown');
+    if (iconPreview && iconDropdown) {
+        iconPreview.addEventListener('click', function(event) {
+            event.stopPropagation();
+            iconDropdown.classList.toggle('show');
+            if (iconDropdown.classList.contains('show')) {
+                // 计算并设置下拉菜单位置
+                const rect = iconPreview.getBoundingClientRect();
+                iconDropdown.style.left = `${rect.left}px`;
+                iconDropdown.style.top = `${rect.bottom + 8}px`;
+            }
+        });
+    }
+    
+    // 点击其他地方关闭图标选择器
+    document.addEventListener('click', function closeIconDropdown() {
+        iconDropdown?.classList.remove('show');
+        document.removeEventListener('click', closeIconDropdown);
+    });
+    
     renderPicIconGrid();
     overlay.classList.add('show');
 }
@@ -641,11 +823,10 @@ function doCreateFolder() {
     }
     const hint = document.getElementById('nf-hint');
     if (hint) hint.style.display = 'none';
-    const imagePath = getImagePath();
     fetch('/api/picture/folder', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({parent_path: imagePath, name: name, icon: selectedPicFolderIcon})
+        body: JSON.stringify({parent_path: imagePath || '', name: name, icon: selectedPicFolderIcon})
     }).then(r => r.json()).then(result => {
         if (result.code === 200) {
             closePicModal();
@@ -705,10 +886,8 @@ function triggerImageUpload() {
 
 function handleImageUpload(files) {
     if (!files || !files.length) return;
-    const imagePath = getImagePath();
-    const targetFolder = currentSelectedFolder || imagePath;
+    const targetFolder = currentSelectedFolder || imagePath || '';
     const formData = new FormData();
-    formData.append('image_path', imagePath);
     formData.append('target_folder', targetFolder);
     for (const f of files) formData.append('files', f);
 
@@ -718,7 +897,7 @@ function handleImageUpload(files) {
                 if (currentSelectedFolder) {
                     loadImagesByFolder(currentSelectedFolder);
                 } else {
-                    loadAllImages(imagePath);
+                    loadAllImages();
                 }
             } else {
                 alert(result.message || '上传失败');
@@ -747,11 +926,10 @@ function confirmDeleteSelected() {
 }
 
 function doDeleteSelected() {
-    const imagePath = getImagePath();
     fetch('/api/picture/delete-images', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({image_path: imagePath, paths: Array.from(pictureSelectedPaths)})
+        body: JSON.stringify({paths: Array.from(pictureSelectedPaths)})
     }).then(r => r.json()).then(result => {
         if (result.code === 200) {
             closePicModal();
@@ -759,7 +937,7 @@ function doDeleteSelected() {
             if (currentSelectedFolder) {
                 loadImagesByFolder(currentSelectedFolder);
             } else {
-                loadAllImages(imagePath);
+                loadAllImages();
             }
         } else {
             alert(result.message || '删除失败');

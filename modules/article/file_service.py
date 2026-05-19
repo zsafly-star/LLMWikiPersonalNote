@@ -10,7 +10,22 @@ def build_file_tree(root_path):
     result = []
     try:
         entries = os.listdir(root_path)
-        entries.sort(key=lambda x: (os.path.isfile(os.path.join(root_path, x)), -os.path.getmtime(os.path.join(root_path, x))))
+
+        meta_path = os.path.join(root_path, '.zsnote.json')
+        sort_order = []
+        if os.path.isfile(meta_path):
+            try:
+                with open(meta_path, 'r', encoding='utf-8') as mf:
+                    meta = json.load(mf)
+                    sort_order = meta.get('sort_order', [])
+            except Exception:
+                pass
+
+        if sort_order:
+            name_order = {n: i for i, n in enumerate(sort_order)}
+            entries.sort(key=lambda x: name_order.get(os.path.splitext(x)[0], len(entries)))
+        else:
+            entries.sort(key=lambda x: (os.path.isfile(os.path.join(root_path, x)), -os.path.getmtime(os.path.join(root_path, x))))
 
         for entry in entries:
             entry_path = os.path.join(root_path, entry)
@@ -124,6 +139,78 @@ def rename_document(file_path, new_name):
     return {'path': new_path, 'old_path': file_path}
 
 
+def move_document(src_path, target_folder):
+    if not os.path.exists(src_path):
+        return None
+    if not os.path.isdir(target_folder):
+        return None
+
+    base_name = os.path.basename(src_path)
+    dest_path = os.path.join(target_folder, base_name)
+
+    if os.path.exists(dest_path):
+        return None
+
+    is_file = os.path.isfile(src_path)
+    old_dir = os.path.dirname(src_path)
+
+    shutil.move(src_path, dest_path)
+
+    if is_file:
+        old_base = os.path.splitext(base_name)[0]
+        _update_index_remove_link(old_dir, old_base)
+        _update_index_add_link(target_folder, old_base, base_name)
+
+    return {'path': dest_path, 'old_path': src_path}
+
+
+def list_folder_children(folder_path):
+    children = []
+    try:
+        meta_path = os.path.join(folder_path, '.zsnote.json')
+        sort_order = []
+        if os.path.isfile(meta_path):
+            try:
+                with open(meta_path, 'r', encoding='utf-8') as mf:
+                    meta = json.load(mf)
+                    sort_order = meta.get('sort_order', [])
+            except Exception:
+                pass
+
+        for entry in os.listdir(folder_path):
+            if entry.startswith('.') or entry == 'index.md':
+                continue
+            entry_path = os.path.join(folder_path, entry)
+            if entry.endswith('.md') and os.path.isfile(entry_path):
+                name = os.path.splitext(entry)[0]
+                children.append({'name': name, 'path': entry_path, 'type': 'file'})
+
+        if sort_order:
+            name_order = {n: i for i, n in enumerate(sort_order)}
+            children.sort(key=lambda c: name_order.get(c['name'], len(children)))
+    except Exception:
+        pass
+    return children
+
+
+def save_sort_order(folder_path, sort_order):
+    meta_path = os.path.join(folder_path, '.zsnote.json')
+    meta = {}
+    if os.path.isfile(meta_path):
+        try:
+            with open(meta_path, 'r', encoding='utf-8') as mf:
+                meta = json.load(mf)
+        except Exception:
+            pass
+    meta['sort_order'] = sort_order
+    try:
+        with open(meta_path, 'w', encoding='utf-8') as mf:
+            json.dump(meta, mf, ensure_ascii=False, indent=2)
+        return {'sort_order': sort_order}
+    except Exception:
+        return None
+
+
 def delete_document(file_path):
     if os.path.isfile(file_path):
         dir_path = os.path.dirname(file_path)
@@ -174,37 +261,10 @@ def save_folder_meta(folder_path, data):
 
     meta['icon'] = data.get('icon', meta.get('icon', 'open_file_folder'))
     meta['name'] = data.get('name', meta.get('name', os.path.basename(folder_path)))
+    meta['description'] = data.get('description', meta.get('description', ''))
 
     with open(meta_file, 'w', encoding='utf-8') as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
-
-    description = data.get('description', '')
-    index_path = os.path.join(folder_path, 'index.md')
-    if os.path.isfile(index_path):
-        with open(index_path, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
-
-        new_lines = []
-        description_written = False
-        for line in lines:
-            stripped = line.strip()
-            if stripped.startswith('> ') and not description_written:
-                if description:
-                    new_lines.append(f'> {description}\n')
-                description_written = True
-            else:
-                new_lines.append(line)
-
-        if description and not description_written:
-            title_end = 0
-            for i, line in enumerate(lines):
-                if line.strip().startswith('#'):
-                    title_end = i + 1
-                    break
-            new_lines.insert(title_end, f'\n> {description}\n')
-
-        with open(index_path, 'w', encoding='utf-8') as f:
-            f.writelines(new_lines)
 
     return True
 

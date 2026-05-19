@@ -85,9 +85,9 @@ def get_article_content():
         return error_response('缺少文件路径')
 
     if os.path.isdir(file_path):
-        index_path = os.path.join(file_path, 'index.md')
         icon = ''
         folder_name = os.path.basename(file_path)
+        description = ''
         meta_path = os.path.join(file_path, '.zsnote.json')
         if os.path.isfile(meta_path):
             try:
@@ -96,38 +96,20 @@ def get_article_content():
                     icon = meta.get('icon', '')
                     if meta.get('name'):
                         folder_name = meta.get('name')
+                    description = meta.get('description', '')
             except Exception:
                 pass
-        
-        folder_path = file_path
-        if os.path.isfile(index_path):
-            content = file_service.read_file_content(index_path)
-            if content is None:
-                return error_response('无效的文件路径')
 
-            if image_path:
-                api_prefix = markdown_service.build_image_api_prefix(image_path)
-                content = markdown_service.rewrite_image_links(content, api_prefix)
+        html_content = markdown_service.render_markdown(description) if description else ''
 
-            html_content = markdown_service.render_markdown(content)
-            html_content = re.sub(r'<h1[^>]*>.*?</h1>', '', html_content, count=1, flags=re.DOTALL)
-            modified = os.path.getmtime(index_path) if os.path.exists(index_path) else None
-
-            return success_response({
-                'title': folder_name,
-                'content': html_content,
-                'raw': content,
-                'path': folder_path,
-                'modified': modified,
-                'icon': icon
-            })
-        else:
-            return success_response({
-                'title': folder_name,
-                'content': '<div style="padding: 40px; text-align: center; color: #909399;">该文件夹下没有内容</div>',
-                'path': file_path,
-                'icon': icon
-            })
+        return success_response({
+            'title': folder_name,
+            'content': html_content,
+            'description': description,
+            'path': file_path,
+            'icon': icon,
+            'children': file_service.list_folder_children(file_path)
+        })
 
     content = file_service.read_file_content(file_path)
     if content is None:
@@ -230,6 +212,33 @@ def rename_document():
     return success_response(result, '重命名成功')
 
 
+@article_bp.route('/api/article/move', methods=['POST'])
+def move_document():
+    data = request.get_json()
+    src_path = data.get('src_path', '')
+    target_folder = data.get('target_folder', '') or Config.ARTICLE_PATH
+
+    if not src_path:
+        return error_response('缺少路径参数')
+
+    result = file_service.move_document(src_path, target_folder)
+    if result is None:
+        return error_response('移动失败（源文件不存在或目标路径无效）', 400)
+    return success_response(result, '移动成功')
+
+
+@article_bp.route('/api/article/sort-order', methods=['POST'])
+def save_sort_order():
+    data = request.get_json()
+    folder_path = data.get('folder_path', '') or Config.ARTICLE_PATH
+    sort_order = data.get('sort_order', [])
+
+    result = file_service.save_sort_order(folder_path, sort_order)
+    if result is None:
+        return error_response('保存排序失败', 400)
+    return success_response(result, '保存成功')
+
+
 @article_bp.route('/api/article/document', methods=['DELETE'])
 def delete_document():
     file_path = request.args.get('path', '')
@@ -290,6 +299,25 @@ def get_attachment():
         return error_response(f'文件不存在: {file_name}', 404)
 
     return send_file(attachment_path, as_attachment=True, download_name=file_name)
+
+
+@article_bp.route('/api/article/attachment', methods=['DELETE'])
+def delete_attachment():
+    data = request.get_json()
+    file_name = data.get('file', '')
+    
+    if not file_name:
+        return error_response('缺少文件名')
+    
+    attachment_path = file_service.get_attachment_path(file_name)
+    if attachment_path is None:
+        return error_response(f'文件不存在: {file_name}', 404)
+    
+    try:
+        os.remove(attachment_path)
+        return success_response('删除成功')
+    except Exception as e:
+        return error_response(f'删除失败: {str(e)}', 500)
 
 
 @article_bp.route('/api/article/image', methods=['GET'])

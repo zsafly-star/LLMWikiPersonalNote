@@ -289,6 +289,25 @@
             });
         }
 
+        function savePaths() {
+            fetch('/api/article/init-paths', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({})
+            })
+            .then(r => r.json())
+            .then(result => {
+                if (result.code === 200 && result.data) {
+                    var el = document.getElementById('resource-path');
+                    if (el) el.value = result.data.article_path.replace(/\\article$/, '');
+                    alert('资源文件夹初始化成功！');
+                } else {
+                    alert('初始化失败：' + (result.message || '未知错误'));
+                }
+            })
+            .catch(function() { alert('初始化失败'); });
+        }
+
         function loadProviderModels() {
             fetch('/api/llm/providers')
                 .then(r => r.json())
@@ -300,6 +319,7 @@
         }
 
         function loadLLMConfigs() {
+            if (!document.getElementById('llm-config-list')) return;
             fetch('/api/llm/configs')
                 .then(r => r.json())
                 .then(result => {
@@ -499,8 +519,7 @@
 
         var _selectedWeatherCity = null;
 
-        // 头像选项
-        const profileAvatarOptions = [
+        var profileAvatarOptions = [
             'smiling_face_3d.png', 'star_3d.png', 'sun_3d.png', 'moon_3d.png',
             'cloud_3d.png', 'laptop_3d.png', 'Sparkles_3d.png'
         ];
@@ -590,6 +609,7 @@
         }
 
         function loadWeatherConfig() {
+            if (!document.getElementById('weather-api-host')) return;
             fetch('/api/weather/config')
                 .then(r => r.json())
                 .then(function(result) {
@@ -606,8 +626,10 @@
                         if (d.city_name) {
                             _selectedWeatherCity = {id: d.location_id, name: d.city_name};
                             var el = document.getElementById('weather-selected-city');
-                            el.style.display = 'block';
-                            el.querySelector('span').textContent = '已选择: ' + d.city_name;
+                            if (el) {
+                                el.style.display = 'block';
+                                el.querySelector('span').textContent = '已选择: ' + d.city_name;
+                            }
                         }
                     }
                 });

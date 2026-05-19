@@ -252,7 +252,7 @@ function renderDocTreeNode(nodes) {
             : `/static/emoji/${isFolder ? 'File folder_3d' : 'Page facing up_3d'}.png`;
         
         html += `
-            <li class="tree-item" data-path="${escapeHtml(node.path)}" data-type="${isFolder ? 'folder' : 'file'}">
+            <li class="tree-item" data-path="${escapeHtml(node.path)}" data-name="${escapeHtml(isFolder ? node.name : node.name.replace(/\.md$/, ''))}" data-type="${isFolder ? 'folder' : 'file'}" draggable="true">
                 <div class="tree-item-content">
                     <span class="tree-expand" ${hasChildren ? '' : 'style="visibility:hidden"'} onclick="toggleTreeExpand(this)">
                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
@@ -335,6 +335,12 @@ function createDocument(folderPath) {
     .then(result => {
         if (result.code === 200) {
             loadDocTree();
+            if (result.data && result.data.path) {
+                loadArticle(result.data.path);
+                setTimeout(function() {
+                    editArticle(result.data.path);
+                }, 300);
+            }
         } else {
             alert('创建文档失败');
         }
@@ -412,7 +418,185 @@ function deleteDocument(filePath) {
 
 // 绑定文档树事件
 function bindDocTreeEvents() {
-    // 点击外部关闭下拉菜单
+    var treeList = document.getElementById('tree-list');
+    if (!treeList) return;
+
+    if (treeList._dragBound) return;
+    treeList._dragBound = true;
+
+    var dragSrcEl = null;
+    var dropTarget = null;
+    var dropAction = '';
+
+    treeList.addEventListener('dragstart', function(e) {
+        var item = e.target.closest('.tree-item');
+        if (!item) return;
+        dragSrcEl = item;
+        dropTarget = null;
+        dropAction = '';
+        item.classList.add('tree-dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', item.getAttribute('data-path'));
+    });
+
+    treeList.addEventListener('dragend', function(e) {
+        var item = e.target.closest('.tree-item');
+        if (item) item.classList.remove('tree-dragging');
+        treeList.querySelectorAll('.tree-drag-over, .tree-drag-before, .tree-drag-after, .tree-drag-inside').forEach(function(el) {
+            el.classList.remove('tree-drag-over', 'tree-drag-before', 'tree-drag-after', 'tree-drag-inside');
+        });
+        dragSrcEl = null;
+        dropTarget = null;
+        dropAction = '';
+    });
+
+    treeList.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        var targetItem = e.target.closest('.tree-item');
+        if (!targetItem || targetItem === dragSrcEl) {
+            dropTarget = null;
+            dropAction = '';
+            return;
+        }
+        if (dragSrcEl && dragSrcEl.contains(targetItem)) {
+            return;
+        }
+        treeList.querySelectorAll('.tree-drag-over, .tree-drag-before, .tree-drag-after, .tree-drag-inside').forEach(function(el) {
+            if (el !== targetItem) el.classList.remove('tree-drag-over', 'tree-drag-before', 'tree-drag-after', 'tree-drag-inside');
+        });
+        targetItem.classList.add('tree-drag-over');
+        var rect = targetItem.querySelector('.tree-item-content').getBoundingClientRect();
+        var y = e.clientY - rect.top;
+        var h = rect.height;
+        var edgeSize = Math.min(h * 0.3, 12);
+        targetItem.classList.remove('tree-drag-before', 'tree-drag-after', 'tree-drag-inside');
+        if (y < edgeSize) {
+            targetItem.classList.add('tree-drag-before');
+            dropAction = 'before';
+        } else if (y > h - edgeSize) {
+            targetItem.classList.add('tree-drag-after');
+            dropAction = 'after';
+        } else {
+            var targetType = targetItem.getAttribute('data-type');
+            if (targetType === 'folder') {
+                targetItem.classList.add('tree-drag-inside');
+                dropAction = 'inside';
+            } else {
+                if (e.clientY < rect.top + h / 2) {
+                    targetItem.classList.add('tree-drag-before');
+                    dropAction = 'before';
+                } else {
+                    targetItem.classList.add('tree-drag-after');
+                    dropAction = 'after';
+                }
+            }
+        }
+        dropTarget = targetItem;
+    });
+
+    treeList.addEventListener('dragleave', function(e) {
+        var targetItem = e.target.closest('.tree-item');
+        if (targetItem && !targetItem.contains(e.relatedTarget)) {
+            targetItem.classList.remove('tree-drag-over', 'tree-drag-before', 'tree-drag-after', 'tree-drag-inside');
+        }
+    });
+
+    function saveNewSortOrder(parentEl) {
+        var folderPath = parentEl.closest('.tree-item');
+        var folderPathStr = folderPath ? folderPath.getAttribute('data-path') : '';
+        var items = parentEl.querySelectorAll(':scope > .tree-item');
+        var newOrder = [];
+        items.forEach(function(item) {
+            var name = item.getAttribute('data-name') || item.getAttribute('data-path').split(/[\\/]/).pop().replace(/\.md$/, '');
+            newOrder.push(name);
+        });
+        fetch('/api/article/sort-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ folder_path: folderPathStr, sort_order: newOrder })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            if (res.code === 200) {
+                loadDocTree();
+            }
+        });
+    }
+
+    treeList.addEventListener('drop', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        treeList.querySelectorAll('.tree-drag-over, .tree-drag-before, .tree-drag-after, .tree-drag-inside').forEach(function(el) {
+            el.classList.remove('tree-drag-over', 'tree-drag-before', 'tree-drag-after', 'tree-drag-inside');
+        });
+
+        if (!dropTarget || !dragSrcEl || dropTarget === dragSrcEl) return;
+
+        var srcPath = dragSrcEl.getAttribute('data-path');
+        var targetType = dropTarget.getAttribute('data-type');
+
+        if (dropAction === 'inside' && targetType === 'folder') {
+            var srcName = dragSrcEl.querySelector('.tree-item-name');
+            var targetName = dropTarget.querySelector('.tree-item-name');
+            var msg = '确定移动 "' + (srcName ? srcName.textContent : '') + '" 到 "' + (targetName ? targetName.textContent : '') + '"？';
+            if (!confirm(msg)) return;
+
+            fetch('/api/article/move', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ src_path: srcPath, target_folder: dropTarget.getAttribute('data-path') })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                if (res.code === 200) {
+                    loadDocTree();
+                } else {
+                    alert(res.message || '移动失败');
+                }
+            })
+            .catch(function() { alert('移动失败'); });
+        } else if (dropAction === 'before' || dropAction === 'after') {
+            var srcParent = dragSrcEl.parentElement;
+            var targetParent = dropTarget.parentElement;
+
+            if (srcParent === targetParent) {
+                if (dropAction === 'before') {
+                    targetParent.insertBefore(dragSrcEl, dropTarget);
+                } else {
+                    targetParent.insertBefore(dragSrcEl, dropTarget.nextSibling);
+                }
+                saveNewSortOrder(targetParent);
+            } else {
+                var srcName = dragSrcEl.querySelector('.tree-item-name');
+                var targetParentItem = targetParent.closest('.tree-item');
+                var targetParentName = targetParentItem ? targetParentItem.querySelector('.tree-item-name') : null;
+                var msg = '确定移动 "' + (srcName ? srcName.textContent : '') + '" 到 "' + (targetParentName ? targetParentName.textContent : '根目录') + '"？';
+                if (!confirm(msg)) return;
+
+                var targetFolderPath = targetParentItem ? targetParentItem.getAttribute('data-path') : '';
+                fetch('/api/article/move', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ src_path: srcPath, target_folder: targetFolderPath })
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(res) {
+                    if (res.code === 200) {
+                        loadDocTree();
+                    } else {
+                        alert(res.message || '移动失败');
+                    }
+                })
+                .catch(function() { alert('移动失败'); });
+            }
+        }
+
+        dragSrcEl = null;
+        dropTarget = null;
+        dropAction = '';
+    });
+
     document.addEventListener('click', function(e) {
         const dropdown = document.getElementById('sidebar-dropdown');
         if (dropdown && !dropdown.contains(e.target)) {
@@ -563,15 +747,19 @@ function renderArticle(data) {
                     </div>
                 </div>
             </div>
-            ` : `
-            <div class="article-header">
-                <h1 class="article-title">${escapeHtml(data.title || '无标题')}</h1>
-                <div class="article-meta">
-                    <span>${formatDate(data.modified)}</span>
-                </div>
-            </div>
-            `}
+            ` : ''}
             <div class="article-body">${data.content || '<p>暂无内容</p>'}</div>
+            ${isFolder && data.children && data.children.length > 0 ? `
+            <div class="folder-articles" id="folder-articles">
+                ${data.children.map(function(child) {
+                    var childEscaped = escapeHtml(child.path).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    return '<div class="folder-article-item" draggable="true" data-path="' + escapeHtml(child.path) + '" data-name="' + escapeHtml(child.name) + '">' +
+                        '<span class="folder-article-drag-handle">&#9776;</span>' +
+                        '<a class="folder-article-link" onclick="loadArticle(\'' + childEscaped + '\')">' + escapeHtml(child.name) + '</a>' +
+                    '</div>';
+                }).join('')}
+            </div>
+            ` : ''}
         </div>
     `;
     
@@ -632,6 +820,73 @@ function renderArticle(data) {
         });
     });
     
+    // 文件夹内文章拖拽排序
+    var folderArticles = document.getElementById('folder-articles');
+    if (folderArticles && !folderArticles._sortBound) {
+        folderArticles._sortBound = true;
+        var sortDragEl = null;
+
+        folderArticles.addEventListener('dragstart', function(e) {
+            var item = e.target.closest('.folder-article-item');
+            if (!item) return;
+            sortDragEl = item;
+            item.classList.add('folder-article-dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        });
+
+        folderArticles.addEventListener('dragend', function(e) {
+            var item = e.target.closest('.folder-article-item');
+            if (item) item.classList.remove('folder-article-dragging');
+            folderArticles.querySelectorAll('.folder-article-drag-over').forEach(function(el) {
+                el.classList.remove('folder-article-drag-over');
+            });
+            sortDragEl = null;
+        });
+
+        folderArticles.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var targetItem = e.target.closest('.folder-article-item');
+            folderArticles.querySelectorAll('.folder-article-drag-over').forEach(function(el) {
+                if (el !== targetItem) el.classList.remove('folder-article-drag-over');
+            });
+            if (targetItem && targetItem !== sortDragEl) {
+                var rect = targetItem.getBoundingClientRect();
+                var midY = rect.top + rect.height / 2;
+                if (e.clientY < midY) {
+                    targetItem.parentNode.insertBefore(sortDragEl, targetItem);
+                } else {
+                    targetItem.parentNode.insertBefore(sortDragEl, targetItem.nextSibling);
+                }
+                targetItem.classList.add('folder-article-drag-over');
+            }
+        });
+
+        folderArticles.addEventListener('drop', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            folderArticles.querySelectorAll('.folder-article-drag-over').forEach(function(el) {
+                el.classList.remove('folder-article-drag-over');
+            });
+            var items = folderArticles.querySelectorAll('.folder-article-item');
+            var newOrder = [];
+            items.forEach(function(item) {
+                newOrder.push(item.getAttribute('data-name'));
+            });
+            fetch('/api/article/sort-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ folder_path: data.path, sort_order: newOrder })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                if (res.code === 200) {
+                    loadDocTree();
+                }
+            });
+        });
+    }
+
     // 文档内链接点击事件（文件夹页面）
     const articleBody = contentEl.querySelector('.article-body');
     if (articleBody) {
@@ -653,9 +908,31 @@ function renderArticle(data) {
     document.querySelectorAll('.tree-item').forEach(item => {
         item.classList.remove('active');
     });
-    const activeItem = document.querySelector(`[data-path="${escapeHtml(data.path)}"]`);
+    const activeItem = document.querySelector('.tree-item[data-path="' + CSS.escape(data.path) + '"]');
     if (activeItem) {
         activeItem.classList.add('active');
+        var parent = activeItem.parentElement;
+        while (parent) {
+            if (parent.classList && parent.classList.contains('tree-children')) {
+                parent.style.display = 'block';
+                var prevExpand = parent.previousElementSibling;
+                if (prevExpand) {
+                    var expandBtn = prevExpand.querySelector('.tree-expand');
+                    if (expandBtn) expandBtn.style.transform = 'rotate(90deg)';
+                }
+            }
+            parent = parent.parentElement;
+        }
+        setTimeout(function() {
+            var treeContainer = document.querySelector('.sidebar-tree');
+            if (treeContainer) {
+                var itemRect = activeItem.getBoundingClientRect();
+                var containerRect = treeContainer.getBoundingClientRect();
+                if (itemRect.top < containerRect.top || itemRect.bottom > containerRect.bottom) {
+                    activeItem.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                }
+            }
+        }, 100);
     }
     
     if (!isFolder) {
@@ -749,7 +1026,8 @@ function toggleArticleFavorite(path, title, btn) {
 
 function editArticle(filePath) {
     const contentEl = document.getElementById('article-content');
-    if (!contentEl) return;
+    const articleContent = document.querySelector('.article-content');
+    if (!contentEl || !articleContent) return;
 
     const isFolder = filePath && !filePath.endsWith('.md');
     if (isFolder) {
@@ -762,17 +1040,28 @@ function editArticle(filePath) {
         .then(result => {
             if (result.code === 200 && result.data) {
                 const rawContent = result.data.raw || '';
-                contentEl.innerHTML = `
-                    <div class="editor-header">
+                
+                // 更新工具栏为编辑模式
+                let toolbarEl = articleContent.querySelector('.article-toolbar');
+                if (!toolbarEl) {
+                    toolbarEl = document.createElement('div');
+                    toolbarEl.className = 'article-toolbar';
+                    articleContent.insertBefore(toolbarEl, contentEl);
+                }
+                toolbarEl.setAttribute('data-article-path', filePath);
+                toolbarEl.innerHTML = `
+                    <div class="article-toolbar-left">
                         <span class="editor-title">编辑: ${escapeHtml(result.data.title || '无标题')}</span>
-                        <div class="editor-actions">
-                            <button class="editor-btn editor-btn-attach" id="editor-attach-btn" title="上传附件">
-                                <img src="/static/emoji/Clipboard_3d.png" class="emoji-icon emoji-icon-sm" />
-                            </button>
-                            <button class="editor-btn editor-btn-save" id="editor-save-btn">保存</button>
-                            <button class="editor-btn editor-btn-cancel" id="editor-cancel-btn">取消</button>
-                        </div>
                     </div>
+                    <div class="article-toolbar-right">
+                        <button class="editor-btn editor-btn-save" id="editor-save-btn">保存</button>
+                        <button class="editor-btn editor-btn-cancel" id="editor-cancel-btn">取消</button>
+                    </div>
+                `;
+                toolbarEl.style.display = 'flex';
+
+                // 内容区域只保留编辑工具栏和编辑器
+                contentEl.innerHTML = `
                     <div class="article-edit-toolbar">
                         <button class="tool-btn" title="粗体 (Ctrl+B)" onclick="insertMarkdown('**', '**')"><strong>B</strong></button>
                         <button class="tool-btn" title="斜体 (Ctrl+I)" onclick="insertMarkdown('*', '*')"><em>I</em></button>
@@ -784,7 +1073,9 @@ function editArticle(filePath) {
                         <button class="tool-btn" title="代码" onclick="insertMarkdown('\`', '\`')">&lt;/&gt;</button>
                         <span class="tool-sep"></span>
                         <button class="tool-btn" title="链接" onclick="insertLink()">🔗</button>
-                        <button class="tool-btn" title="图片" onclick="insertImage()">🖼️</button>
+                        <button class="tool-btn" title="图片" onclick="showImagePicker()">🖼️</button>
+                        <span class="tool-sep"></span>
+                        <button class="tool-btn editor-btn-attach" id="editor-attach-btn" title="上传附件"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg></button>
                     </div>
                     <div class="editor-split">
                         <div class="editor-split-left">
@@ -821,15 +1112,39 @@ function editArticle(filePath) {
                 textarea.addEventListener('input', updatePreview);
 
                 document.getElementById('editor-save-btn').addEventListener('click', function() {
+                    var newContent = textarea.value;
+                    var firstLine = newContent.split('\n')[0];
+                    var newTitle = firstLine.replace(/^#+\s*/, '').trim();
+                    var oldTitle = filePath.split(/[\\/]/).pop().replace(/\.md$/, '');
+                    var savePath = filePath;
+
                     fetch('/api/article/content', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ path: filePath, content: textarea.value })
+                        body: JSON.stringify({ path: savePath, content: newContent })
                     })
                     .then(r => r.json())
                     .then(res => {
                         if (res.code === 200) {
-                            loadArticle(filePath);
+                            if (newTitle && newTitle !== oldTitle) {
+                                fetch('/api/article/rename', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ file_path: savePath, new_name: newTitle + '.md' })
+                                })
+                                .then(r2 => r2.json())
+                                .then(res2 => {
+                                    if (res2.code === 200 && res2.data && res2.data.path) {
+                                        loadDocTree();
+                                        loadArticle(res2.data.path);
+                                    } else {
+                                        loadDocTree();
+                                        loadArticle(savePath);
+                                    }
+                                });
+                            } else {
+                                loadArticle(savePath);
+                            }
                         } else {
                             alert(res.message || '保存失败');
                         }
