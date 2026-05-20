@@ -22,6 +22,7 @@
 - [Flask](https://github.com/pallets/flask)
 - [Blossom](https://github.com/blossom-editor/blossom)
 - [llm-wiki-compiler](https://github.com/atomicstrata/llm-wiki-compiler)
+- [Fluent Emoji](https://github.com/microsoft/fluentui-emoji)
 
 ## ✨ 亮点
 
