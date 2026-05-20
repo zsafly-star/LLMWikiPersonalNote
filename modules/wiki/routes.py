@@ -52,20 +52,58 @@ def get_compile_status():
 @wiki_bp.route('/api/wiki/pages', methods=['GET'])
 def get_pages():
     pages = WikiPage.query.order_by(WikiPage.updated_at.desc()).all()
-    return success_response([p.to_dict() for p in pages])
+    if pages:
+        return success_response([p.to_dict() for p in pages])
+
+    file_pages = wiki_service.list_concept_pages()
+    result = []
+    for fm in file_pages:
+        item = {
+            'id': 0,
+            'title': fm.get('title', fm.get('slug', '')),
+            'slug': fm.get('slug', ''),
+            'kind': fm.get('kind', 'concept'),
+            'summary': fm.get('summary', ''),
+            'body': '',
+            'sources': fm.get('sources', []),
+            'confidence': fm.get('confidence', 0.0),
+            'links': [],
+            'created_at': None,
+            'updated_at': None,
+        }
+        result.append(item)
+    return success_response(result)
 
 
 @wiki_bp.route('/api/wiki/pages/<slug>', methods=['GET'])
 def get_page(slug):
     page = WikiPage.query.filter_by(slug=slug).first()
-    if not page:
-        return error_response('页面不存在', 404)
+    page_dict = None
 
-    page_dict = page.to_dict()
+    if page:
+        page_dict = page.to_dict()
 
     file_data = wiki_service.read_concept_page(slug)
     if file_data:
-        page_dict['body'] = file_data['body']
+        if page_dict is None:
+            fm = file_data['frontmatter']
+            page_dict = {
+                'id': 0,
+                'title': fm.get('title', slug),
+                'slug': slug,
+                'kind': fm.get('kind', 'concept'),
+                'summary': fm.get('summary', ''),
+                'body': file_data['body'],
+                'sources': fm.get('sources', []),
+                'confidence': fm.get('confidence', 0.0),
+                'links': [],
+                'created_at': None,
+                'updated_at': None,
+            }
+        else:
+            page_dict['body'] = file_data['body']
+    elif page_dict is None:
+        return error_response('页面不存在', 404)
 
     return success_response(page_dict)
 
