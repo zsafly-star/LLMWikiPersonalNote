@@ -1415,7 +1415,7 @@ function sendMsg() {
             if (st.thinkingContent) {
                 ensureThinkingBlock();
                 if (st.thinkingBody) {
-                    st.thinkingBody.textContent = st.thinkingContent;
+                    st.thinkingBody.innerHTML = st.thinkingContent.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g, '<br>');
                     if (st.thinkingPinned) st.thinkingBody.scrollTop = st.thinkingBody.scrollHeight;
                 }
             }
