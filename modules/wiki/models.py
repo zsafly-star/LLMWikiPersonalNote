@@ -14,7 +14,9 @@ class WikiPage(db.Model):
     sources = db.Column(db.Text, default='[]')
     confidence = db.Column(db.Float, default=0.0)
     links = db.Column(db.Text, default='[]')
+    provenance_refs = db.Column(db.Text, default='[]')
     content_hash = db.Column(db.String(64), default='')
+    review_status = db.Column(db.String(20), default='approved')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -30,6 +32,8 @@ class WikiPage(db.Model):
             'sources': json.loads(self.sources) if self.sources else [],
             'confidence': self.confidence,
             'links': json.loads(self.links) if self.links else [],
+            'provenance_refs': json.loads(self.provenance_refs) if self.provenance_refs else [],
+            'review_status': self.review_status,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }

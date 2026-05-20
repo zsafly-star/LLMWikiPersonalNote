@@ -1,10 +1,12 @@
 import os
+import json
 
 from flask import Blueprint, request, render_template
 from common.response import success_response, error_response
 from extensions import db
 from .models import WikiPage
-from . import wiki_service, wiki_compiler
+from . import wiki_service
+from .compiler import pipeline as wiki_compiler
 from modules.chat.models import ChatSession, ChatMessage
 
 wiki_bp = Blueprint('wiki', __name__, template_folder='templates')
@@ -51,7 +53,9 @@ def get_compile_status():
 
 @wiki_bp.route('/api/wiki/pages', methods=['GET'])
 def get_pages():
-    pages = WikiPage.query.order_by(WikiPage.updated_at.desc()).all()
+    pages = WikiPage.query.filter(
+        WikiPage.review_status.in_(['approved', 'chat'])
+    ).order_by(WikiPage.updated_at.desc()).all()
     if pages:
         return success_response([p.to_dict() for p in pages])
 
@@ -160,7 +164,9 @@ def get_queries():
 
 @wiki_bp.route('/api/wiki/graph', methods=['GET'])
 def get_graph():
-    pages = WikiPage.query.all()
+    pages = WikiPage.query.filter(
+        WikiPage.review_status.in_(['approved', 'chat'])
+    ).all()
 
     if not pages:
         file_pages = wiki_service.list_concept_pages()
@@ -255,7 +261,9 @@ def _get_or_create_wiki_session():
 
 
 def _build_wiki_system_prompt():
-    pages = WikiPage.query.order_by(WikiPage.updated_at.desc()).all()
+    pages = WikiPage.query.filter(
+        WikiPage.review_status.in_(['approved', 'chat'])
+    ).order_by(WikiPage.updated_at.desc()).all()
     if not pages:
         return '你是一个知识助手。目前 Wiki 知识库中还没有内容，请先编译知识库。'
 
@@ -416,3 +424,42 @@ def save_chat_message_to_wiki(message_id):
     wiki_service.generate_index()
 
     return success_response({'slug': slug, 'title': title}, '保存到 Wiki 成功')
+
+
+@wiki_bp.route('/api/wiki/candidates', methods=['GET'])
+def get_candidates():
+    candidates = WikiPage.query.filter_by(review_status='pending').order_by(WikiPage.created_at.desc()).all()
+    return success_response([c.to_dict() for c in candidates])
+
+
+@wiki_bp.route('/api/wiki/candidates/<int:page_id>/approve', methods=['POST'])
+def approve_candidate(page_id):
+    page = WikiPage.query.get(page_id)
+    if not page or page.review_status != 'pending':
+        return error_response('候选页面不存在', 404)
+
+    page.review_status = 'approved'
+    db.session.commit()
+    wiki_service.generate_index()
+
+    try:
+        from .compiler.retrieval import update_page_embeddings
+        update_page_embeddings()
+    except Exception:
+        pass
+
+    return success_response(page.to_dict(), '审批通过')
+
+
+@wiki_bp.route('/api/wiki/candidates/<int:page_id>/reject', methods=['DELETE'])
+def reject_candidate(page_id):
+    page = WikiPage.query.get(page_id)
+    if not page or page.review_status != 'pending':
+        return error_response('候选页面不存在', 404)
+
+    slug = page.slug
+    wiki_service.delete_concept_page(slug)
+    db.session.delete(page)
+    db.session.commit()
+
+    return success_response(None, '已拒绝')

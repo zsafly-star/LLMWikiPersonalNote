@@ -41,6 +41,92 @@
     line-height: 1.5;
     color: var(--color-foreground-secondary, var(--color-muted));
 }
+
+.wiki-list-item[data-review="pending"] {
+    border-left: 3px solid #f59e0b;
+    background: rgba(245, 158, 11, 0.05);
+}
+
+.wiki-review-badge {
+    display: inline-block;
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: 6px;
+    font-weight: 500;
+}
+
+.wiki-review-badge.pending {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fbbf24;
+}
+
+.wiki-page-review-banner {
+    background: #fef3c7;
+    border: 1px solid #fbbf24;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.wiki-page-review-banner span {
+    color: #92400e;
+    font-size: 14px;
+}
+
+.wiki-page-review-banner .review-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.wiki-page-review-banner .btn-approve {
+    background: #16a34a;
+    color: #fff;
+    border: none;
+    padding: 4px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.wiki-page-review-banner .btn-reject {
+    background: #dc2626;
+    color: #fff;
+    border: none;
+    padding: 4px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.provenance-ref {
+    color: var(--color-muted);
+    font-size: 12px;
+    font-style: italic;
+    background: var(--color-bg-secondary, #f5f5f5);
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+
+.query-sources {
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: var(--color-bg-secondary, #f5f5f5);
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+.query-sources strong {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 12px;
+    color: var(--color-muted);
+}
 </style>
 
 {% block content %}
@@ -68,6 +154,7 @@
             <div class="wiki-tab active" data-tab="concepts" onclick="switchWikiTab('concepts')">概念</div>
             <div class="wiki-tab" data-tab="sources" onclick="switchWikiTab('sources')">文章</div>
             <div class="wiki-tab" data-tab="queries" onclick="switchWikiTab('queries')">查询</div>
+            <div class="wiki-tab" data-tab="candidates" onclick="switchWikiTab('candidates')">待审批</div>
         </div>
         <div class="wiki-sidebar-search">
             <input type="text" id="wiki-search" placeholder="搜索..." oninput="filterWikiList()">
@@ -187,6 +274,10 @@ function loadWikiList() {
         fetch('/api/wiki/queries').then(r => r.json()).then(function(res) {
             if (res.code === 200) renderWikiList(res.data, 'queries');
         });
+    } else if (currentWikiTab === 'candidates') {
+        fetch('/api/wiki/candidates').then(r => r.json()).then(function(res) {
+            if (res.code === 200) renderWikiList(res.data, 'candidates');
+        });
     }
 }
 
@@ -210,6 +301,14 @@ function renderWikiList(items, type) {
             html += '<div class="wiki-list-item wiki-source-item">' +
                 '<span class="wiki-item-title">' + item.title + '</span>' +
                 '<span class="wiki-item-status ' + statusClass + '">' + statusText + '</span></div>';
+        } else if (type === 'candidates') {
+            html += '<div class="wiki-list-item" data-review="pending" data-slug="' + item.slug + '" data-id="' + item.id + '" onclick="loadCandidatePage(' + item.id + ', \'' + item.slug + '\')">' +
+                '<span class="wiki-item-title">' + item.title + '<span class="wiki-review-badge pending">待审批</span></span>' +
+                '<span class="wiki-item-desc">' + (item.summary || '') + '</span>' +
+                '<div style="margin-top:4px;">' +
+                    '<button class="btn-approve" onclick="event.stopPropagation(); approveCandidate(' + item.id + ')" style="font-size:12px;padding:2px 8px;background:#16a34a;color:#fff;border:none;border-radius:3px;cursor:pointer;">通过</button> ' +
+                    '<button class="btn-reject" onclick="event.stopPropagation(); rejectCandidate(' + item.id + ')" style="font-size:12px;padding:2px 8px;background:#dc2626;color:#fff;border:none;border-radius:3px;cursor:pointer;">拒绝</button>' +
+                '</div></div>';
         } else {
             html += '<div class="wiki-list-item">' +
                 '<span class="wiki-item-title">' + item.title + '</span></div>';
@@ -244,6 +343,17 @@ function loadPage(slug) {
         setTimeout(function() { highlightListItem(slug); }, 100);
 
         var content = document.getElementById('wiki-content');
+
+        var reviewBanner = '';
+        if (data.review_status === 'pending') {
+            reviewBanner = '<div class="wiki-page-review-banner">' +
+                '<span>该页面等待审批</span>' +
+                '<div class="review-actions">' +
+                    '<button class="btn-approve" onclick="approveCandidate(' + data.id + ')">通过</button>' +
+                    '<button class="btn-reject" onclick="rejectCandidate(' + data.id + ')">拒绝</button>' +
+                '</div></div>';
+        }
+
         var linksHtml = '';
         if (data.links && data.links.length > 0) {
             linksHtml = '<div class="wiki-page-links"><strong>相关概念:</strong> ';
@@ -258,6 +368,7 @@ function loadPage(slug) {
             sourcesHtml = '<div class="wiki-page-sources"><strong>来源:</strong> ' + data.sources.join(', ') + '</div>';
         }
         content.innerHTML = '<div class="wiki-page">' +
+            reviewBanner +
             '<div class="wiki-page-header">' +
                 '<h1>' + data.title + '</h1>' +
                 '<div class="wiki-page-meta">' +
@@ -284,6 +395,7 @@ function renderMarkdown(text) {
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.+?)\*/g, '<em>$1</em>')
         .replace(/`(.+?)`/g, '<code>$1</code>')
+        .replace(/\^\[([^\]]+)\]/g, '<span class="provenance-ref" title="来源: $1">^[$1]</span>')
         .replace(/\[\[(.+?)\]\]/g, '<a class="wiki-link" onclick="loadPage(\'$1\'.toLowerCase().replace(/ /g,\'_\'))">$1</a>')
         .replace(/^- (.+)$/gm, '<li>$1</li>')
         .replace(/\n\n/g, '<br><br>')
@@ -442,10 +554,110 @@ function doQuery() {
         btn.disabled = false;
         btn.textContent = '查询';
         if (res.code === 200) {
-            document.getElementById('query-answer').innerHTML = renderMarkdown(res.data.answer || '');
+            var data = res.data;
+            var sourcesHtml = '';
+            if (data.sources && data.sources.length > 0) {
+                sourcesHtml = '<div class="query-sources"><strong>参考来源</strong>' +
+                    data.sources.map(function(s) { return '<span>' + s + '</span>'; }).join('、') +
+                    '</div>';
+            }
+            document.getElementById('query-answer').innerHTML = renderMarkdown(data.answer || '') + sourcesHtml;
             document.getElementById('query-result').style.display = 'block';
         } else {
             alert(res.message || '查询失败');
+        }
+    });
+}
+
+function loadCandidatePage(pageId, slug) {
+    fetch('/api/wiki/candidates').then(r => r.json()).then(function(res) {
+        if (res.code !== 200) return;
+        var data = null;
+        for (var i = 0; i < res.data.length; i++) {
+            if (res.data[i].id === pageId) { data = res.data[i]; break; }
+        }
+        if (!data) return;
+
+        var content = document.getElementById('wiki-content');
+        var reviewBanner = '<div class="wiki-page-review-banner">' +
+            '<span>该页面等待审批</span>' +
+            '<div class="review-actions">' +
+                '<button class="btn-approve" onclick="approveCandidate(' + data.id + ')">通过</button>' +
+                '<button class="btn-reject" onclick="rejectCandidate(' + data.id + ')">拒绝</button>' +
+            '</div></div>';
+
+        var linksHtml = '';
+        if (data.links && data.links.length > 0) {
+            linksHtml = '<div class="wiki-page-links"><strong>相关概念:</strong> ';
+            data.links.forEach(function(l) {
+                var ls = l.toLowerCase().replace(/ /g, '_').replace(/\//g, '_');
+                linksHtml += '<a class="wiki-link" onclick="loadPage(\'' + ls + '\')">' + l + '</a> ';
+            });
+            linksHtml += '</div>';
+        }
+
+        var sourcesHtml = '';
+        if (data.sources && data.sources.length > 0) {
+            sourcesHtml = '<div class="wiki-page-sources"><strong>来源:</strong> ' + data.sources.join(', ') + '</div>';
+        }
+
+        content.innerHTML = '<div class="wiki-page">' +
+            reviewBanner +
+            '<div class="wiki-page-header">' +
+                '<h1>' + data.title + '</h1>' +
+                '<div class="wiki-page-meta">' +
+                    '<span class="wiki-page-kind">' + (data.kind || 'concept') + '</span>' +
+                    (data.confidence ? '<span class="wiki-page-confidence">置信度: ' + (data.confidence * 100).toFixed(0) + '%</span>' : '') +
+                '</div>' +
+                (data.summary ? '<p class="wiki-page-summary">' + data.summary + '</p>' : '') +
+            '</div>' +
+            '<div class="wiki-page-body">' + renderMarkdown(data.body || '') + '</div>' +
+            linksHtml + sourcesHtml +
+        '</div>';
+    });
+}
+
+function approveCandidate(pageId) {
+    fetch('/api/wiki/candidates/' + pageId + '/approve', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    }).then(r => r.json()).then(function(res) {
+        if (res.code === 200) {
+            if (currentWikiTab === 'candidates') loadWikiList();
+            loadWikiList();
+            var content = document.getElementById('wiki-content');
+            if (content) {
+                var pageData = res.data;
+                content.innerHTML = '<div class="wiki-page"><div class="wiki-page-header">' +
+                    '<h1>' + pageData.title + '</h1>' +
+                    '<span style="color:#16a34a;font-size:14px;">已通过审批</span>' +
+                    '</div>' +
+                    (pageData.summary ? '<p class="wiki-page-summary">' + pageData.summary + '</p>' : '') +
+                    '<div class="wiki-page-body">' + renderMarkdown(pageData.body || '') + '</div></div>';
+            }
+        } else {
+            alert(res.message || '操作失败');
+        }
+    });
+}
+
+function rejectCandidate(pageId) {
+    if (!confirm('确定拒绝此页面？该操作不可撤销。')) return;
+    fetch('/api/wiki/candidates/' + pageId + '/reject', {
+        method: 'DELETE',
+        headers: {'Content-Type': 'application/json'}
+    }).then(r => r.json()).then(function(res) {
+        if (res.code === 200) {
+            loadWikiList();
+            var content = document.getElementById('wiki-content');
+            if (content) {
+                content.innerHTML = '<div class="wiki-empty">' +
+                    '<img src="/static/emoji/Wastebasket_3d.png" class="emoji-icon emoji-icon-xl" />' +
+                    '<h3>已拒绝</h3>' +
+                    '<p>候选页面已被移除</p></div>';
+            }
+        } else {
+            alert(res.message || '操作失败');
         }
     });
 }
