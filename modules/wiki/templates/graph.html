@@ -4,19 +4,34 @@
 <div class="graph-view">
     <div class="graph-header">
         <h2>知识星链</h2>
-        <div>
-            <button class="btn btn-sm btn-secondary" onclick="refreshGraph()" title="刷新">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+        <div class="graph-header-actions">
+            <div class="graph-search-box">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="text" id="graph-search-input" placeholder="搜索节点..." oninput="filterGraphNodes()" />
+            </div>
+            <button class="btn btn-sm btn-secondary graph-btn" onclick="resetGraphZoom()" title="重置视图">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
+            </button>
+            <button class="btn btn-sm btn-secondary graph-btn" onclick="refreshGraph()" title="刷新数据">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
             </button>
         </div>
     </div>
     <div class="graph-container" id="graph-container">
+        <div class="graph-loading" id="graph-loading">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="emoji-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            <span>加载中...</span>
+        </div>
+        <div class="graph-empty-msg" id="graph-empty" style="display:none;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+            <p>暂无数据，请先编译 Wiki</p>
+        </div>
         <svg class="graph-canvas" id="graph-svg" width="100%" height="100%"></svg>
         <div class="graph-tooltip" id="graph-tooltip">
             <div class="graph-tooltip-title" id="tooltip-title"></div>
             <div class="graph-tooltip-desc" id="tooltip-desc"></div>
         </div>
-        <div class="graph-legend">
+        <div class="graph-legend" id="graph-legend">
             <div class="graph-legend-item">
                 <div class="graph-legend-dot legend-concept"></div>
                 <span>概念</span>
@@ -25,9 +40,15 @@
                 <div class="graph-legend-dot legend-query"></div>
                 <span>查询</span>
             </div>
-            <div class="graph-empty-msg" id="graph-empty" style="display:none;">
-                暂无数据，请先编译 Wiki
+            <div class="graph-legend-item">
+                <div class="graph-legend-dot legend-entity"></div>
+                <span>实体</span>
             </div>
+            <div class="graph-legend-item">
+                <div class="graph-legend-dot legend-overview"></div>
+                <span>概述</span>
+            </div>
+            <div class="graph-legend-stats" id="graph-stats"></div>
         </div>
     </div>
 </div>
@@ -48,7 +69,9 @@
         resizeObserver: null,
         resizeTimer: null,
         resizeHandler: null,
-        simulation: null
+        simulation: null,
+        zoomBehavior: null,
+        currentTransform: null
     };
     window.__wikiGraphState = graphState;
 
@@ -115,7 +138,7 @@
         graphState.resizeTimer = setTimeout(function() {
             graphState.resizeTimer = null;
             renderGraph(graphState.data);
-        }, 120);
+        }, 150);
     }
 
     function setupResizeObserver() {
@@ -135,17 +158,28 @@
         if (graphState.loading) return;
         graphState.loading = true;
 
+        var loadingEl = document.getElementById('graph-loading');
+        var emptyEl = document.getElementById('graph-empty');
+        if (loadingEl) loadingEl.style.display = 'flex';
+        if (emptyEl) emptyEl.style.display = 'none';
+
         fetch('/api/wiki/graph')
             .then(function(r) { return r.json(); })
             .then(function(res) {
                 if (graphState.disposed) return;
+                if (loadingEl) loadingEl.style.display = 'none';
+
                 if (res.code === 200 && res.data) {
                     graphState.data = res.data;
                     renderGraph(graphState.data);
+                } else {
+                    if (emptyEl) emptyEl.style.display = 'flex';
                 }
             })
             .catch(function(err) {
                 console.error('Failed to load wiki graph', err);
+                if (loadingEl) loadingEl.style.display = 'none';
+                if (emptyEl) emptyEl.style.display = 'flex';
             })
             .finally(function() {
                 graphState.loading = false;
@@ -153,7 +187,42 @@
     }
 
     window.refreshGraph = function() {
+        graphState.data = null;
         loadGraph();
+    };
+
+    window.resetGraphZoom = function() {
+        if (!graphState.zoomBehavior) return;
+        var svg = d3.select('#graph-svg');
+        svg.transition().duration(500).call(graphState.zoomBehavior.transform, d3.zoomIdentity);
+    };
+
+    window.filterGraphNodes = function() {
+        var query = (document.getElementById('graph-search-input').value || '').toLowerCase().trim();
+        var svg = d3.select('#graph-svg');
+        var nodeGroups = svg.selectAll('.graph-node-group');
+        var links = svg.selectAll('.graph-link');
+
+        if (!query) {
+            nodeGroups.style('opacity', 1);
+            links.style('opacity', 0.42);
+            return;
+        }
+
+        var matchedIds = {};
+        nodeGroups.each(function(d) {
+            if (d.label.toLowerCase().indexOf(query) >= 0) {
+                matchedIds[d.id] = true;
+            }
+        });
+
+        nodeGroups.style('opacity', function(d) {
+            return matchedIds[d.id] ? 1 : 0.15;
+        });
+
+        links.style('opacity', function(l) {
+            return (matchedIds[l.source.id] || matchedIds[l.target.id]) ? 0.7 : 0.08;
+        });
     };
 
     function renderGraph(data) {
@@ -162,13 +231,13 @@
         var container = document.getElementById('graph-container');
         var empty = document.getElementById('graph-empty');
         var tooltip = document.getElementById('graph-tooltip');
+        var legend = document.getElementById('graph-legend');
+        var statsEl = document.getElementById('graph-stats');
         if (!container) return;
 
         var width = container.clientWidth;
         var height = container.clientHeight;
-        if (width < 20 || height < 20) {
-            return;
-        }
+        if (width < 20 || height < 20) return;
 
         stopSimulation();
 
@@ -177,10 +246,12 @@
         svg.selectAll('*').remove();
 
         if (!data.nodes || data.nodes.length === 0) {
-            if (empty) empty.style.display = 'block';
+            if (empty) empty.style.display = 'flex';
+            if (legend) legend.style.display = 'none';
             return;
         }
         if (empty) empty.style.display = 'none';
+        if (legend) legend.style.display = 'block';
 
         svg
             .attr('width', width)
@@ -203,10 +274,10 @@
         };
 
         var maxSize = d3.max(data.nodes, function(d) { return d.size || 1; }) || 1;
-        var maxRadius = Math.max(18, Math.min(30, Math.sqrt(width * height) / 28));
+        var maxRadius = Math.max(16, Math.min(28, Math.sqrt(width * height) / 30));
         var sizeScale = d3.scaleLinear()
             .domain([1, maxSize])
-            .range([7, maxRadius]);
+            .range([6, maxRadius]);
 
         var nodes = data.nodes.map(function(n) {
             return {
@@ -226,39 +297,54 @@
             return { source: e.source, target: e.target };
         });
 
+        if (statsEl) {
+            statsEl.textContent = nodes.length + ' 个节点 · ' + links.length + ' 条关系';
+        }
+
         var nodeCount = Math.max(nodes.length, 1);
         var areaPerNode = Math.sqrt((width * height) / nodeCount);
-        var linkDistance = Math.max(70, Math.min(150, areaPerNode * 2.3));
-        var chargeStrength = -Math.max(120, Math.min(420, areaPerNode * 7));
+        var linkDistance = Math.max(60, Math.min(140, areaPerNode * 2.2));
+        var chargeStrength = -Math.max(100, Math.min(400, areaPerNode * 6.5));
 
         graphState.simulation = d3.forceSimulation(nodes)
-            .force('link', d3.forceLink(links).id(function(d) { return d.id; }).distance(linkDistance).strength(0.45))
+            .force('link', d3.forceLink(links).id(function(d) { return d.id; }).distance(linkDistance).strength(0.4))
             .force('charge', d3.forceManyBody().strength(chargeStrength))
             .force('center', d3.forceCenter(width / 2, height / 2))
-            .force('x', d3.forceX(width / 2).strength(0.03))
-            .force('y', d3.forceY(height / 2).strength(0.03))
-            .force('collision', d3.forceCollide().radius(function(d) { return sizeScale(d.size) + 6; }));
+            .force('x', d3.forceX(width / 2).strength(0.025))
+            .force('y', d3.forceY(height / 2).strength(0.025))
+            .force('collision', d3.forceCollide().radius(function(d) { return sizeScale(d.size) + 5; }));
 
         var g = svg.append('g');
 
-        svg.call(d3.zoom()
-            .scaleExtent([0.25, 4])
+        graphState.zoomBehavior = d3.zoom()
+            .scaleExtent([0.2, 5])
             .on('zoom', function(event) {
                 g.attr('transform', event.transform);
-            }));
+            });
+
+        svg.call(graphState.zoomBehavior);
+
+        var defs = svg.append('defs');
+        var glowFilter = defs.append('filter').attr('id', 'glow');
+        glowFilter.append('feGaussianBlur').attr('stdDeviation', '3').attr('result', 'coloredBlur');
+        var feMerge = glowFilter.append('feMerge');
+        feMerge.append('feMergeNode').attr('in', 'coloredBlur');
+        feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
 
         var link = g.append('g')
             .selectAll('line')
             .data(links)
             .join('line')
+            .attr('class', 'graph-link')
             .attr('stroke', clrMuted)
-            .attr('stroke-width', 1.2)
+            .attr('stroke-width', 1)
             .attr('stroke-opacity', 0.42);
 
         var node = g.append('g')
             .selectAll('g')
             .data(nodes)
             .join('g')
+            .attr('class', 'graph-node-group')
             .attr('cursor', 'pointer')
             .call(d3.drag()
                 .on('start', dragstarted)
@@ -268,7 +354,7 @@
         node.append('circle')
             .attr('r', function(d) { return sizeScale(d.size); })
             .attr('fill', function(d) { return colorMap[d.kind] || colorMap.concept; })
-            .attr('fill-opacity', 0.86)
+            .attr('fill-opacity', 0.85)
             .attr('stroke', clrSurface)
             .attr('stroke-width', 2);
 
@@ -278,32 +364,36 @@
             .attr('font-size', '11px')
             .attr('font-weight', '500')
             .attr('fill', clrFg)
+            .attr('pointer-events', 'none')
             .text(function(d) {
                 return d.label.length > 8 ? d.label.substring(0, 8) + '...' : d.label;
             });
 
         node.on('mouseover', function(event, d) {
-            document.getElementById('tooltip-title').textContent = d.label;
-            document.getElementById('tooltip-desc').textContent = d.kind;
+            var titleEl = document.getElementById('tooltip-title');
+            var descEl = document.getElementById('tooltip-desc');
+            if (titleEl) titleEl.textContent = d.label;
+            if (descEl) descEl.textContent = d.kind + (d.size > 1 ? ' · 关联 ' + d.size : '');
             tooltip.style.display = 'block';
-            tooltip.style.left = (event.offsetX + 15) + 'px';
+            tooltip.style.left = Math.min(event.offsetX + 15, width - 200) + 'px';
             tooltip.style.top = (event.offsetY - 10) + 'px';
 
             d3.select(this).select('circle')
                 .transition().duration(200)
                 .attr('r', sizeScale(d.size) * 1.3)
-                .attr('fill-opacity', 1);
+                .attr('fill-opacity', 1)
+                .attr('filter', 'url(#glow)');
 
             link.attr('stroke', function(l) {
                 return (l.source.id === d.id || l.target.id === d.id) ? colorMap[d.kind] || '#0D9488' : clrMuted;
             }).attr('stroke-width', function(l) {
-                return (l.source.id === d.id || l.target.id === d.id) ? 2.5 : 1.2;
+                return (l.source.id === d.id || l.target.id === d.id) ? 2.5 : 1;
             }).attr('stroke-opacity', function(l) {
-                return (l.source.id === d.id || l.target.id === d.id) ? 1 : 0.18;
+                return (l.source.id === d.id || l.target.id === d.id) ? 1 : 0.12;
             });
         })
         .on('mousemove', function(event) {
-            tooltip.style.left = (event.offsetX + 15) + 'px';
+            tooltip.style.left = Math.min(event.offsetX + 15, width - 200) + 'px';
             tooltip.style.top = (event.offsetY - 10) + 'px';
         })
         .on('mouseout', function(event, d) {
@@ -312,10 +402,11 @@
             d3.select(this).select('circle')
                 .transition().duration(200)
                 .attr('r', sizeScale(d.size))
-                .attr('fill-opacity', 0.86);
+                .attr('fill-opacity', 0.85)
+                .attr('filter', null);
 
             link.attr('stroke', clrMuted)
-                .attr('stroke-width', 1.2)
+                .attr('stroke-width', 1)
                 .attr('stroke-opacity', 0.42);
         })
         .on('click', function(event, d) {
