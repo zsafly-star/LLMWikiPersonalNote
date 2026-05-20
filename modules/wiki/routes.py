@@ -161,6 +161,28 @@ def get_queries():
 @wiki_bp.route('/api/wiki/graph', methods=['GET'])
 def get_graph():
     pages = WikiPage.query.all()
+
+    if not pages:
+        file_pages = wiki_service.list_concept_pages()
+        nodes = []
+        edges = []
+        slug_set = set()
+        slug_title_map = {}
+
+        for fm in file_pages:
+            slug = fm.get('slug', '')
+            title = fm.get('title', slug)
+            slug_set.add(slug)
+            slug_title_map[slug] = title
+            nodes.append({
+                'id': slug,
+                'label': title,
+                'kind': fm.get('kind', 'concept'),
+                'size': 1,
+            })
+
+        return success_response({'nodes': nodes, 'edges': edges})
+
     nodes = []
     edges = []
     slug_set = set()
