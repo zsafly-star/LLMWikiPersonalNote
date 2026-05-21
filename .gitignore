@@ -53,7 +53,7 @@ instance/
 
 # Uploads
 static/uploads/
-static/img/
+
 
 # OS
 .DS_Store

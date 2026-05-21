@@ -17,13 +17,21 @@ function initSettingsPage() {
 }
 
 function loadThemeSettings() {
-    const savedTheme = localStorage.getItem('blossom-theme') || 'light';
+    const savedTheme = localStorage.getItem('blossom-theme') || 'green';
     const themeSelect = document.getElementById('theme-select');
     if (themeSelect) {
         themeSelect.value = savedTheme;
     }
     
-    // 应用主题
+    const themeCards = document.querySelectorAll('.theme-card');
+    themeCards.forEach(card => {
+        if (card.dataset.theme === savedTheme) {
+            card.classList.add('active');
+        } else {
+            card.classList.remove('active');
+        }
+    });
+    
     applyTheme(savedTheme);
 }
 
@@ -127,7 +135,7 @@ function applyTheme(theme) {
     const root = document.documentElement;
     
     // 移除旧主题类
-    root.classList.remove('theme-green', 'theme-pink', 'theme-dark-teal', 'theme-dark-pink');
+    root.classList.remove('theme-green', 'theme-pink', 'theme-dark-teal', 'theme-dark-pink', 'theme-blueprint');
     
     // 添加新主题类
     root.classList.add(`theme-${theme}`);

@@ -1,5 +1,9 @@
 import requests
+import time
 from .models import WeatherConfig
+
+_weather_cache = {}
+_weather_cache_ttl = 1800
 
 
 WEATHER_ICON_SVG = {
@@ -158,12 +162,18 @@ class WeatherService:
 
     @staticmethod
     def get_daily_forecast():
+        global _weather_cache
         config = WeatherConfig.query.first()
         if not config or not config.api_key:
             return {'code': 400, 'message': '请先在设置中配置和风天气 API Key'}
 
         if not config.location_id:
             return {'code': 400, 'message': '请先在设置中选择城市'}
+
+        cache_key = f"{config.location_id}:{config.api_key}"
+        cached = _weather_cache.get(cache_key)
+        if cached and (time.time() - cached['ts']) < _weather_cache_ttl:
+            return cached['data']
 
         host = config.api_host or 'https://devapi.qweather.com'
         if not host.startswith('http'):
@@ -200,7 +210,7 @@ class WeatherService:
                         'wind_scale_day': day.get('windScaleDay', ''),
                     })
                 city_name = config.city_name or '未知'
-                return {
+                result_data = {
                     'code': 200,
                     'data': {
                         'city': city_name,
@@ -208,6 +218,8 @@ class WeatherService:
                         'forecast': result,
                     }
                 }
+                _weather_cache[cache_key] = {'ts': time.time(), 'data': result_data}
+                return result_data
             else:
                 error_msg = data.get('code', '')
                 if 'error' in data:
